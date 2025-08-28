@@ -57,3 +57,8 @@ export interface ValidationToken {
   expiresAt: string;
   validated: boolean;
 }
+
+// Request envelope for module communication
+export interface ModuleRequest<TPayload extends BasePayload> extends Envelope<TPayload> {
+  // Inherits all properties from Envelope
+}

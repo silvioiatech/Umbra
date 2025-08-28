@@ -97,13 +97,29 @@ export interface FinanceResult {
   anomalies?: string[];
 }
 
-export interface ConciergeResult {
-  systemStatus?: {
-    cpu?: number;
-    memory?: number;
-    disk?: number;
-    uptime?: number;
+export interface BusinessResult {
+  clientList?: Array<{
+    name: string;
+    port: number;
+    status: string;
+    url?: string;
+    containerInfo?: any;
+  }>;
+  workflowStatus?: {
+    delegated: boolean;
+    targetModule: string;
+    taskId?: string;
   };
+  inventoryData?: any;
+  operationResult?: any;
+  timestamp?: string;
+}
+
+export interface ConciergeResult {
+  systemStatus?: any;
+  executionResult?: any;
+  containerResult?: any;
+  validationResult?: any;
   commandOutput?: string;
   clientList?: Array<{
     name: string;
@@ -111,6 +127,7 @@ export interface ConciergeResult {
     status: string;
     url?: string;
   }>;
+  timestamp?: string;
 }
 
 export interface ProductionResult {
