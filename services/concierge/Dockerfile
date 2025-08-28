@@ -3,7 +3,7 @@ FROM node:20-alpine AS shared-builder
 
 WORKDIR /app/shared
 COPY shared/package*.json ./
-RUN npm ci --production=false
+RUN npm install
 
 COPY shared/ ./
 RUN npm run build
@@ -18,7 +18,7 @@ COPY --from=shared-builder /app/shared /app/shared
 
 # Copy service package files and install dependencies
 COPY services/concierge/package*.json ./
-RUN npm ci --production=false
+RUN npm install
 
 # Copy service source and build configuration
 COPY services/concierge/src ./src
@@ -40,7 +40,7 @@ COPY --from=service-builder /app/dist ./dist
 COPY --from=service-builder /app/package*.json ./
 
 # Install only production dependencies
-RUN npm ci --only=production && npm cache clean --force
+RUN npm install --only=production && npm cache clean --force
 
 # Expose port
 EXPOSE 9090
