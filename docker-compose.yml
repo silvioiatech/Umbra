@@ -1,0 +1,108 @@
+version: '3.8'
+
+services:
+  umbra:
+    build:
+      context: ./services/umbra
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - NODE_ENV=development
+      - PORT=8080
+      - BOT_TOKEN=${BOT_TOKEN}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - STORAGE_ENDPOINT=${STORAGE_ENDPOINT}
+      - STORAGE_ACCESS_KEY=${STORAGE_ACCESS_KEY}
+      - STORAGE_SECRET_KEY=${STORAGE_SECRET_KEY}
+      - STORAGE_BUCKET=${STORAGE_BUCKET}
+    depends_on:
+      - finance
+      - business
+      - production
+      - creator
+      - mcp
+    networks:
+      - umbra-network
+
+  finance:
+    build:
+      context: ./services/finance
+      dockerfile: Dockerfile
+    ports:
+      - "8081:8081"
+    environment:
+      - NODE_ENV=development
+      - PORT=8081
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - STORAGE_ENDPOINT=${STORAGE_ENDPOINT}
+      - STORAGE_ACCESS_KEY=${STORAGE_ACCESS_KEY}
+      - STORAGE_SECRET_KEY=${STORAGE_SECRET_KEY}
+      - STORAGE_BUCKET=${STORAGE_BUCKET}
+    networks:
+      - umbra-network
+
+  business:
+    build:
+      context: ./services/business
+      dockerfile: Dockerfile
+    ports:
+      - "8082:8082"
+    environment:
+      - NODE_ENV=development
+      - PORT=8082
+    networks:
+      - umbra-network
+
+  production:
+    build:
+      context: ./services/production
+      dockerfile: Dockerfile
+    ports:
+      - "8083:8083"
+    environment:
+      - NODE_ENV=development
+      - PORT=8083
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - N8N_URL=${N8N_URL}
+      - N8N_API_KEY=${N8N_API_KEY}
+    networks:
+      - umbra-network
+
+  creator:
+    build:
+      context: ./services/creator
+      dockerfile: Dockerfile
+    ports:
+      - "8084:8084"
+    environment:
+      - NODE_ENV=development
+      - PORT=8084
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - RUNWAY_API_KEY=${RUNWAY_API_KEY}
+      - SHOTSTACK_API_KEY=${SHOTSTACK_API_KEY}
+      - ELEVENLABS_API_KEY=${ELEVENLABS_API_KEY}
+      - STORAGE_ENDPOINT=${STORAGE_ENDPOINT}
+      - STORAGE_ACCESS_KEY=${STORAGE_ACCESS_KEY}
+      - STORAGE_SECRET_KEY=${STORAGE_SECRET_KEY}
+      - STORAGE_BUCKET=${STORAGE_BUCKET}
+    networks:
+      - umbra-network
+
+  mcp:
+    build:
+      context: ./services/mcp
+      dockerfile: Dockerfile
+    ports:
+      - "8085:8085"
+    environment:
+      - NODE_ENV=development
+      - PORT=8085
+      - N8N_URL=${N8N_URL}
+      - N8N_API_KEY=${N8N_API_KEY}
+    networks:
+      - umbra-network
+
+networks:
+  umbra-network:
+    driver: bridge

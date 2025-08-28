@@ -1,1 +1,292 @@
-# Umbra
+# Umbra Bot System - Complete Multi-Module Implementation
+
+A comprehensive, production-ready Telegram bot ecosystem with 7 core services based on envelope communication patterns.
+
+## Architecture Overview
+
+Umbra is a modular system with 7 core services:
+
+1. **Umbra (Main Agent)** - Entry point, NLU routing (EN/FR/PT), simple task execution
+2. **Finance Module** - OCR processing, financial document extraction, reporting with PII minimization
+3. **VPS Concierge** - EXCLUSIVE VPS access, system monitoring, container management  
+4. **Business Module** - Client lifecycle management via Concierge delegation (NO VPS access)
+5. **Production Module** - Workflow creation using Claude→GPT→MCP pipeline with 3-retry logic
+6. **Creator Module** - Multi-provider media generation (OpenRouter primary, Runway/Shotstack/ElevenLabs for gaps)
+7. **MCP Service** - n8n workflow lifecycle management and validation gatekeeper
+
+## Features
+
+### ✅ Implemented Features
+
+- **Complete envelope communication system** with standardized contracts
+- **Umbra Main Agent** with Telegram integration, multi-language support (EN/FR/PT)
+- **Intent classification** using both pattern matching and AI (OpenRouter)
+- **Module routing** with fallback mechanisms and health checks
+- **Finance Module** with full OCR capabilities using Tesseract.js and OpenRouter vision
+- **Document processing** for invoices, receipts, statements with structured data extraction
+- **Financial categorization** and report generation (budget, VAT, tax)
+- **PII minimization** and secure storage integration with S3/R2
+- **VPS Concierge** foundation with security middleware and validation gates
+- **Comprehensive error handling** and retry logic with circuit breakers
+- **Audit logging** and observability across all services
+- **Railway deployment** configuration for production hosting
+
+### 🚧 Core Components Ready for Extension
+
+- **Business Module** framework for client lifecycle management
+- **Production Module** structure for Claude→GPT→MCP workflow pipeline
+- **Creator Module** foundation for multi-provider media generation
+- **MCP Service** base for n8n workflow management
+
+## Quick Start
+
+### Local Development
+
+1. **Clone and install dependencies:**
+```bash
+git clone <repository-url>
+cd Umbra
+npm install
+```
+
+2. **Build shared components:**
+```bash
+cd shared
+npm install
+npm run build
+```
+
+3. **Configure environment variables:**
+```bash
+cp services/umbra/.env.example services/umbra/.env
+# Edit .env files with your API keys
+```
+
+4. **Start with Docker Compose:**
+```bash
+docker-compose up --build
+```
+
+### Railway Deployment
+
+Each service includes Railway configuration:
+
+```bash
+# Deploy individual services
+railway deploy --service umbra
+railway deploy --service finance
+# ... etc
+```
+
+## Service Details
+
+### Umbra Main Agent (Port 8080)
+- **Telegram Bot Integration** with webhook support
+- **Multi-language support** (English, French, Portuguese)
+- **Intent Classification** using pattern matching + OpenRouter AI
+- **Module Routing** with health checks and fallbacks
+- **Simple Task Execution** (calculations, translations)
+- **Document Processing** (photos, PDFs via Finance module)
+
+### Finance Module (Port 8081)
+- **OCR Processing** with Tesseract.js for images and pdf-parse for PDFs
+- **AI-Enhanced Extraction** using OpenRouter vision models
+- **Financial Categorization** with confidence scoring
+- **Report Generation** (budget, VAT, tax reports)
+- **Data Deduplication** and anomaly detection
+- **PII Minimization** for GDPR compliance
+- **S3 Storage Integration** with lifecycle management
+
+### VPS Concierge (Port 9090)
+- **Exclusive VPS Access** - only service with SSH credentials
+- **Validation Gates** for critical operations (delete, restart, etc.)
+- **System Monitoring** with real-time metrics
+- **Container Management** via Docker commands
+- **Client Management Scripts** execution
+- **Comprehensive Audit Logging** for security compliance
+
+## API Documentation
+
+### Envelope Communication Pattern
+
+All inter-service communication uses standardized envelopes:
+
+```typescript
+interface Envelope<TPayload> {
+  reqId: string;            // uuid
+  userId: string;           // telegram id  
+  lang: 'EN' | 'FR' | 'PT';
+  timestamp: string;        // ISO
+  payload: TPayload;
+  meta?: {
+    costCapUsd?: number;
+    priority?: 'normal' | 'urgent';
+    retryCount?: number;
+  };
+}
+```
+
+### Service Endpoints
+
+- **Umbra**: `POST /api/v1/route` - Route requests to appropriate modules
+- **Finance**: `POST /api/v1/ocr` - Process documents with OCR
+- **Concierge**: `POST /api/v1/execute` - Execute VPS commands (validation required)
+- **All Services**: `GET /health` - Health check endpoint
+
+## Security & Compliance
+
+### Trust Boundaries
+- **Public**: Telegram Bot (bot token only)
+- **Orchestration**: Internal services with API key authentication
+- **VPS Access**: Concierge only (exclusive SSH access)
+- **External APIs**: OpenRouter, Runway, Shotstack, ElevenLabs
+- **Storage**: S3/R2 with signed URLs and lifecycle policies
+
+### Validation Gates
+Critical operations require validation tokens:
+- VPS command execution
+- Container deletion/restart
+- Client management operations
+- Production workflow deployment
+
+### Audit Logging
+- All requests logged with sanitized data
+- PII minimization for financial documents
+- Critical operation tracking
+- Performance monitoring
+
+## Environment Configuration
+
+### Required Environment Variables
+
+**Umbra Service:**
+```bash
+BOT_TOKEN=your_telegram_bot_token
+OPENROUTER_API_KEY=your_openrouter_key
+STORAGE_ENDPOINT=your_s3_endpoint
+STORAGE_ACCESS_KEY=your_access_key
+STORAGE_SECRET_KEY=your_secret_key
+STORAGE_BUCKET=your_bucket_name
+```
+
+**Finance Service:**
+```bash
+OPENROUTER_API_KEY=your_openrouter_key
+STORAGE_ENDPOINT=your_s3_endpoint
+STORAGE_ACCESS_KEY=your_access_key
+STORAGE_SECRET_KEY=your_secret_key
+STORAGE_BUCKET=your_bucket_name
+```
+
+**VPS Concierge:**
+```bash
+VPS_HOST=your_vps_ip
+VPS_USERNAME=your_ssh_user
+VPS_PRIVATE_KEY=your_ssh_private_key
+VPS_PORT=22
+```
+
+## Testing
+
+### Running Tests
+```bash
+# Run all tests
+npm test
+
+# Run service-specific tests  
+cd services/umbra && npm test
+cd services/finance && npm test
+```
+
+### Manual Testing
+
+1. **Telegram Bot Testing:**
+   - Send `/start` to get welcome message
+   - Upload a receipt/invoice for OCR processing
+   - Try different languages (EN/FR/PT)
+
+2. **API Testing:**
+   ```bash
+   # Health check
+   curl http://localhost:8080/health
+   
+   # Test finance OCR
+   curl -X POST http://localhost:8081/api/v1/ocr \
+     -H "Content-Type: application/json" \
+     -H "X-API-Key: your-api-key" \
+     -d '{"reqId":"test-123","userId":"123","lang":"EN","timestamp":"2024-01-01T00:00:00Z","payload":{"action":"ocr","documentUrl":"https://example.com/receipt.jpg"}}'
+   ```
+
+## Architecture Decisions
+
+### Why Envelope Pattern?
+- **Standardized Communication**: All services use the same message format
+- **Audit Trail**: Every request has a unique ID and user context
+- **Multi-language Support**: Built into every message
+- **Retry Logic**: Embedded retry count and error handling
+- **Cost Control**: Optional cost caps for expensive operations
+
+### Why TypeScript?
+- **Type Safety**: Catch errors at compile time
+- **Better Tooling**: IDE support and refactoring
+- **Shared Types**: Consistent interfaces across services
+- **Documentation**: Self-documenting code with interfaces
+
+### Why Microservices?
+- **Scalability**: Scale individual services independently
+- **Technology Diversity**: Use best tool for each job
+- **Fault Isolation**: One service failure doesn't bring down the system
+- **Team Autonomy**: Different teams can own different services
+- **Deployment Independence**: Deploy services separately
+
+## Production Considerations
+
+### Monitoring
+- Health checks on all services
+- Performance metrics and alerting
+- Error rate monitoring
+- Cost tracking for external APIs
+
+### Scaling
+- Horizontal scaling via Railway/Docker
+- Database connections pooling
+- CDN for media files
+- Caching for frequent requests
+
+### Security
+- API key rotation
+- Secret management
+- Network isolation
+- Regular security audits
+
+## Contributing
+
+1. **Fork the repository**
+2. **Create feature branch**: `git checkout -b feature/new-feature`
+3. **Make changes** following the existing patterns
+4. **Add tests** for new functionality
+5. **Update documentation** if needed
+6. **Submit pull request**
+
+### Development Guidelines
+
+- Follow existing code structure and naming conventions
+- Add comprehensive error handling with appropriate error types
+- Include audit logging for important operations
+- Write tests for critical functionality
+- Update environment examples for new configuration
+
+## License
+
+MIT License - see LICENSE file for details.
+
+## Support
+
+For support and questions:
+- Create an issue in the repository
+- Check the documentation in `/docs`
+- Review the API specifications in `/docs/api`
+
+---
+
+**Built with ❤️ using Node.js, TypeScript, Express.js, and OpenRouter AI**
