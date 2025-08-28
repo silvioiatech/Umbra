@@ -140,7 +140,7 @@ export class OpenRouterClient {
     try {
       return JSON.parse(content);
     } catch (error) {
-      this.logger.error('Failed to parse JSON response', { content, error: error.message });
+      this.logger.error('Failed to parse JSON response', { content, error: (error as Error).message });
       throw new Error('Invalid JSON response from OpenRouter');
     }
   }

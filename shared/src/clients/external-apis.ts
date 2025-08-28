@@ -162,15 +162,15 @@ export class ShotstackClient {
 
     if (subtitles && subtitles.length > 0) {
       tracks.push({
-        clips: subtitles.map(subtitle => ({
+        clips: subtitles.map((subtitle: any) => ({
           asset: {
             type: 'title',
             text: subtitle.text,
             style: 'subtitle'
-          },
+          } as any,
           start: subtitle.start,
           length: subtitle.duration
-        }))
+        })) as any
       });
     }
 
@@ -356,10 +356,10 @@ export class N8nClient {
         errors
       };
     } catch (error) {
-      this.logger.error('Workflow validation error', { error: error.message });
+      this.logger.error('Workflow validation error', { error: (error as Error).message });
       return {
         valid: false,
-        errors: ['Validation failed: ' + error.message]
+        errors: ['Validation failed: ' + (error as Error).message]
       };
     }
   }

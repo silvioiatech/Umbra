@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
-import { Envelope, ModulePayload } from '../types/envelopes';
+import { Envelope } from '../types/envelopes';
+import { ModulePayload } from '../types/modules';
 import Logger from '../utils/logger';
 
 interface ValidationRequest extends Request {

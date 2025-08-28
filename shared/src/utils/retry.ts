@@ -26,7 +26,7 @@ export class RetryUtils {
       onRetry
     } = options;
 
-    let lastError: Error;
+    let lastError: Error = new Error('Unknown error');
 
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
