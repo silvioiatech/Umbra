@@ -150,6 +150,6 @@ export interface CreatorResult {
 export interface MCPResult {
   workflowId?: string;
   version?: string;
-  status?: 'validated' | 'imported' | 'enabled' | 'promoted';
+  status?: 'validated' | 'imported' | 'enabled' | 'promoted' | 'failed';
   errors?: string[];
 }
