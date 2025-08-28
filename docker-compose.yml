@@ -3,8 +3,8 @@ version: '3.8'
 services:
   umbra:
     build:
-      context: ./services/umbra
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/umbra/Dockerfile
     ports:
       - "8080:8080"
     environment:
@@ -16,8 +16,15 @@ services:
       - STORAGE_ACCESS_KEY=${STORAGE_ACCESS_KEY}
       - STORAGE_SECRET_KEY=${STORAGE_SECRET_KEY}
       - STORAGE_BUCKET=${STORAGE_BUCKET}
+      - FINANCE_API_KEY=finance_dev_key
+      - CONCIERGE_API_KEY=concierge_dev_key
+      - BUSINESS_API_KEY=business_dev_key
+      - PRODUCTION_API_KEY=production_dev_key
+      - CREATOR_API_KEY=creator_dev_key
+      - MCP_API_KEY=mcp_dev_key
     depends_on:
       - finance
+      - concierge
       - business
       - production
       - creator
@@ -27,8 +34,8 @@ services:
 
   finance:
     build:
-      context: ./services/finance
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/finance/Dockerfile
     ports:
       - "8081:8081"
     environment:
@@ -39,40 +46,68 @@ services:
       - STORAGE_ACCESS_KEY=${STORAGE_ACCESS_KEY}
       - STORAGE_SECRET_KEY=${STORAGE_SECRET_KEY}
       - STORAGE_BUCKET=${STORAGE_BUCKET}
+      - UMBRA_API_KEY=finance_dev_key
+    networks:
+      - umbra-network
+
+  concierge:
+    build:
+      context: .
+      dockerfile: services/concierge/Dockerfile
+    ports:
+      - "9090:9090"
+    environment:
+      - NODE_ENV=development
+      - PORT=9090
+      - VPS_HOST=${VPS_HOST}
+      - VPS_USERNAME=${VPS_USERNAME}
+      - VPS_PRIVATE_KEY=${VPS_PRIVATE_KEY}
+      - VPS_PORT=${VPS_PORT:-22}
+      - UMBRA_API_KEY=concierge_dev_key
+      - BUSINESS_API_KEY=business_dev_key
     networks:
       - umbra-network
 
   business:
     build:
-      context: ./services/business
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/business/Dockerfile
     ports:
       - "8082:8082"
     environment:
       - NODE_ENV=development
       - PORT=8082
+      - UMBRA_API_KEY=business_dev_key
+      - CONCIERGE_API_KEY=concierge_dev_key
+      - PRODUCTION_API_KEY=production_dev_key
+      - CONCIERGE_URL=http://concierge:9090
+      - PRODUCTION_URL=http://production:8083
     networks:
       - umbra-network
 
   production:
     build:
-      context: ./services/production
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/production/Dockerfile
     ports:
       - "8083:8083"
     environment:
       - NODE_ENV=development
       - PORT=8083
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
-      - N8N_URL=${N8N_URL}
-      - N8N_API_KEY=${N8N_API_KEY}
+      - OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
+      - OPENROUTER_SITE_URL=https://umbra.ai
+      - MCP_URL=http://mcp:8085
+      - UMBRA_API_KEY=production_dev_key
+      - BUSINESS_API_KEY=business_dev_key
+      - MCP_API_KEY=mcp_dev_key
     networks:
       - umbra-network
 
   creator:
     build:
-      context: ./services/creator
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/creator/Dockerfile
     ports:
       - "8084:8084"
     environment:
@@ -86,20 +121,24 @@ services:
       - STORAGE_ACCESS_KEY=${STORAGE_ACCESS_KEY}
       - STORAGE_SECRET_KEY=${STORAGE_SECRET_KEY}
       - STORAGE_BUCKET=${STORAGE_BUCKET}
+      - BOT_TOKEN=${BOT_TOKEN}
+      - UMBRA_API_KEY=creator_dev_key
     networks:
       - umbra-network
 
   mcp:
     build:
-      context: ./services/mcp
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/mcp/Dockerfile
     ports:
       - "8085:8085"
     environment:
       - NODE_ENV=development
       - PORT=8085
-      - N8N_URL=${N8N_URL}
+      - N8N_API_URL=${N8N_API_URL:-http://localhost:5678/api/v1}
+      - N8N_PROD_API_URL=${N8N_PROD_API_URL}
       - N8N_API_KEY=${N8N_API_KEY}
+      - PRODUCTION_API_KEY=mcp_dev_key
     networks:
       - umbra-network
 

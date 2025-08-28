@@ -16,8 +16,9 @@ Umbra is a modular system with 7 core services:
 
 ## Features
 
-### ✅ Implemented Features
+### ✅ Complete Implementation - Production Ready
 
+- **All 7 services implemented** with full functionality and Railway deployment ready
 - **Complete envelope communication system** with standardized contracts
 - **Umbra Main Agent** with Telegram integration, multi-language support (EN/FR/PT)
 - **Intent classification** using both pattern matching and AI (OpenRouter)
@@ -26,17 +27,23 @@ Umbra is a modular system with 7 core services:
 - **Document processing** for invoices, receipts, statements with structured data extraction
 - **Financial categorization** and report generation (budget, VAT, tax)
 - **PII minimization** and secure storage integration with S3/R2
-- **VPS Concierge** foundation with security middleware and validation gates
+- **VPS Concierge** with complete system monitoring, SSH management, and validation gates
+- **Business Module** with client lifecycle management delegating to Concierge and Production
+- **Production Module** with Claude→GPT→MCP pipeline, 3-retry logic, and circuit breakers
+- **Creator Module** with multi-provider media generation (OpenRouter, Runway, Shotstack, ElevenLabs)
+- **MCP Service** with n8n workflow lifecycle management and validation gatekeeper
 - **Comprehensive error handling** and retry logic with circuit breakers
 - **Audit logging** and observability across all services
 - **Railway deployment** configuration for production hosting
 
-### 🚧 Core Components Ready for Extension
+### 🏗️ Architecture Highlights
 
-- **Business Module** framework for client lifecycle management
-- **Production Module** structure for Claude→GPT→MCP workflow pipeline
-- **Creator Module** foundation for multi-provider media generation
-- **MCP Service** base for n8n workflow management
+- **Envelope Pattern**: Standardized inter-service communication
+- **Security Constraints**: Only Concierge has VPS access, validation gates for critical operations  
+- **Retry Strategies**: Different retry configs for functional/technical/network errors
+- **Circuit Breakers**: Automatic fallback on provider failures
+- **Cost Controls**: Per-request and per-module budget caps
+- **Multi-Environment**: Staging and production environment support
 
 ## Quick Start
 
