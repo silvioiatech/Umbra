@@ -22,6 +22,7 @@ services:
       - PRODUCTION_API_KEY=production_dev_key
       - CREATOR_API_KEY=creator_dev_key
       - MCP_API_KEY=mcp_dev_key
+      # NOTE: For Railway deployment, MCP is external. Configure MCP_URL to point to external service
     depends_on:
       - finance
       - concierge
@@ -98,6 +99,7 @@ services:
       - OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
       - OPENROUTER_SITE_URL=https://umbra.ai
       - MCP_URL=http://mcp:8085
+      # NOTE: For Railway deployment, configure MCP_URL to point to external service
       - UMBRA_API_KEY=production_dev_key
       - BUSINESS_API_KEY=business_dev_key
       - MCP_API_KEY=mcp_dev_key
@@ -126,6 +128,8 @@ services:
     networks:
       - umbra-network
 
+  # MCP Service - For local development only
+  # In Railway deployment, MCP is hosted externally
   mcp:
     build:
       context: .

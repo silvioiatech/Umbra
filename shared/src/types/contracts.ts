@@ -38,12 +38,6 @@ export const SERVICES: Record<string, ServiceContract> = {
     health: '/health',
     version: '1.0.0'
   },
-  mcp: {
-    name: 'mcp',
-    port: 8085,
-    health: '/health',
-    version: '1.0.0'
-  },
   concierge: {
     name: 'concierge',
     port: 9090,
@@ -80,10 +74,6 @@ export const API_ENDPOINTS = {
   creator: {
     generate: '/api/v1/generate',
     media: '/api/v1/media'
-  },
-  mcp: {
-    validate: '/api/v1/validate',
-    lifecycle: '/api/v1/lifecycle'
   }
 };
 
