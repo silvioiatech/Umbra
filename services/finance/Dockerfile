@@ -1,4 +1,4 @@
-# Multi-stage build for TypeScript monorepo
+# Multi-stage build for TypeScript monorepo with certificate workaround
 FROM node:20-alpine AS base
 
 # Install dependencies needed for image processing and OCR in build stage
@@ -13,12 +13,17 @@ RUN apk add --no-cache \
     make \
     g++
 
+# Disable strict SSL checking for npm (workaround for cert issues)
+RUN npm config set strict-ssl false
+
 # Set working directory
 WORKDIR /app
 
-# Copy package.json files for better Docker layer caching
+# Copy root package.json for workspace configuration
 COPY package*.json ./
 COPY tsconfig.json ./
+
+# Copy shared package configuration first for better caching
 COPY shared/package*.json ./shared/
 COPY services/finance/package*.json ./services/finance/
 
@@ -28,15 +33,15 @@ RUN npm install --include=dev
 # Copy shared source code first
 COPY shared/ ./shared/
 
-# Build shared package (force clean build) using node to run tsc
-RUN cd shared && rm -f tsconfig.tsbuildinfo && node ../node_modules/typescript/lib/tsc.js --build
+# Build shared package using npm script (avoids direct tsc issues)
+RUN cd shared && npm run build
 
 # Copy service source code
 COPY services/finance/src ./services/finance/src
 COPY services/finance/tsconfig.json ./services/finance/
 
-# Build the service using node to run tsc
-RUN cd services/finance && node ../../node_modules/typescript/lib/tsc.js
+# Build the service using npm script
+RUN cd services/finance && npm run build
 
 # Production stage
 FROM node:20-alpine AS production

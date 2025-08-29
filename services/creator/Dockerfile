@@ -1,12 +1,17 @@
-# Multi-stage build for TypeScript monorepo
+# Multi-stage build for TypeScript monorepo with certificate workaround
 FROM node:20-alpine AS base
+
+# Disable strict SSL checking for npm (workaround for cert issues)
+RUN npm config set strict-ssl false
 
 # Set working directory
 WORKDIR /app
 
-# Copy package.json files for better Docker layer caching
+# Copy root package.json for workspace configuration
 COPY package*.json ./
 COPY tsconfig.json ./
+
+# Copy shared package configuration first for better caching
 COPY shared/package*.json ./shared/
 COPY services/creator/package*.json ./services/creator/
 
@@ -16,15 +21,15 @@ RUN npm install --include=dev
 # Copy shared source code first
 COPY shared/ ./shared/
 
-# Build shared package (force clean build) using node to run tsc
-RUN cd shared && rm -f tsconfig.tsbuildinfo && node ../node_modules/typescript/lib/tsc.js --build
+# Build shared package using npm script (avoids direct tsc issues)
+RUN cd shared && npm run build
 
 # Copy service source code
 COPY services/creator/src ./services/creator/src
 COPY services/creator/tsconfig.json ./services/creator/
 
-# Build the service using node to run tsc
-RUN cd services/creator && node ../../node_modules/typescript/lib/tsc.js
+# Build the service using npm script
+RUN cd services/creator && npm run build
 
 # Production stage
 FROM node:20-alpine AS production
