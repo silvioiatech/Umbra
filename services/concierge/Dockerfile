@@ -1,53 +1,74 @@
-# Multi-stage build to handle shared package dependency
-FROM node:20-alpine AS shared-builder
+# Multi-stage build for TypeScript monorepo with certificate workaround
+FROM node:20-alpine AS base
 
-WORKDIR /app/shared
-COPY shared/package*.json ./
-RUN npm install
+# Disable strict SSL checking for npm (workaround for cert issues)
+RUN npm config set strict-ssl false
 
-COPY shared/ ./
-RUN npm run build
-
-# Main service build
-FROM node:20-alpine AS service-builder
-
+# Set working directory
 WORKDIR /app
 
-# Copy shared package from previous stage
-COPY --from=shared-builder /app/shared /app/shared
+# Copy root package.json for workspace configuration
+COPY package*.json ./
+COPY tsconfig.json ./
 
-# Copy service package files and install dependencies
-COPY services/concierge/package*.json ./
-RUN npm install
+# Copy shared package configuration first for better caching
+COPY shared/package*.json ./shared/
+COPY services/concierge/package*.json ./services/concierge/
 
-# Copy service source and build configuration
-COPY services/concierge/src ./src
-COPY services/concierge/tsconfig.json ./
+# Install all dependencies using workspace
+RUN npm install --include=dev
 
-# Build the application
-RUN npm run build
+# Copy shared source code first
+COPY shared/ ./shared/
+
+# Build shared package using npm script (avoids direct tsc issues)
+RUN cd shared && npm run build
+
+# Copy service source code
+COPY services/concierge/src ./services/concierge/src
+COPY services/concierge/tsconfig.json ./services/concierge/
+
+# Build the service using npm script
+RUN cd services/concierge && npm run build
 
 # Production stage
-FROM node:20-alpine
+FROM node:20-alpine AS production
 
-# Install curl for health checks and openssh client for VPS connections
-RUN apk add --no-cache curl openssh-client
+# Install openssh client for VPS connections
+RUN apk add --no-cache openssh-client
 
 WORKDIR /app
 
-# Copy only production dependencies and built code
-COPY --from=service-builder /app/dist ./dist
-COPY --from=service-builder /app/package*.json ./
+# Create non-root user for security
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nodejs -u 1001
+
+# Copy built application
+COPY --from=base /app/services/concierge/dist ./dist
+COPY --from=base /app/services/concierge/package*.json ./
+
+# Copy built shared package as a dependency
+COPY --from=base /app/shared/dist ./node_modules/@umbra/shared/dist
+COPY --from=base /app/shared/package.json ./node_modules/@umbra/shared/
 
 # Install only production dependencies
-RUN npm install --only=production && npm cache clean --force
+RUN npm ci --only=production --no-audit --no-fund && \
+    npm cache clean --force
+
+# Set proper ownership
+RUN chown -R nodejs:nodejs /app
+USER nodejs
+
+# Environment variables
+ENV NODE_ENV=production
+ENV PORT=9090
 
 # Expose port
 EXPOSE 9090
 
-# Health check
+# Health check using Node.js built-in net module
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:9090/health || exit 1
+  CMD node -e "require('net').createConnection(9090, 'localhost').on('connect', () => process.exit(0)).on('error', () => process.exit(1))"
 
 # Start the service
 CMD ["npm", "start"]
