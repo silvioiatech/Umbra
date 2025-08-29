@@ -7,27 +7,20 @@ import { AuthMiddleware, ValidationMiddleware, AuditMiddleware } from '@umbra/sh
 import Logger from '@umbra/shared/src/utils/logger';
 import { apiRoutes } from './routes/api';
 import { healthRoutes } from './routes/health';
-import { VPSManager } from './vps/vps-manager';
-import { SystemMonitor } from './monitoring/system-monitor';
 
 // Load environment variables
 config();
 
-class ConciergeServer {
+class ProductionServer {
   private app: express.Application;
   private logger: Logger;
-  private vpsManager!: VPSManager;
-  private systemMonitor!: SystemMonitor;
   private port: number;
 
   constructor() {
     this.app = express();
-    this.logger = new Logger('ConciergeServer');
-    this.port = parseInt(process.env.PORT || '9090');
+    this.logger = new Logger('ProductionServer');
+    this.port = parseInt(process.env.PORT || '8083');
 
-    // Initialize VPS components
-    this.initializeVPSComponents();
-    
     // Setup middleware
     this.setupMiddleware();
     
@@ -36,24 +29,6 @@ class ConciergeServer {
     
     // Setup error handling
     this.setupErrorHandling();
-  }
-
-  private initializeVPSComponents(): void {
-    try {
-      this.vpsManager = new VPSManager({
-        host: process.env.VPS_HOST!,
-        username: process.env.VPS_USERNAME!,
-        privateKey: process.env.VPS_PRIVATE_KEY!,
-        port: parseInt(process.env.VPS_PORT || '22')
-      });
-
-      this.systemMonitor = new SystemMonitor(this.vpsManager);
-
-      this.logger.info('VPS Concierge components initialized successfully');
-    } catch (error) {
-      this.logger.error('Failed to initialize VPS components', { error: (error as Error).message });
-      throw error;
-    }
   }
 
   private setupMiddleware(): void {
@@ -68,23 +43,22 @@ class ConciergeServer {
     this.app.use(compression());
 
     // Body parsing
-    this.app.use(express.json({ limit: '1mb' }));
-    this.app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+    this.app.use(express.json({ limit: '50mb' })); // Large limit for n8n JSON
+    this.app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
     // Audit middleware
     this.app.use(AuditMiddleware.generateAuditId());
     this.app.use(AuditMiddleware.logRequest());
     this.app.use(AuditMiddleware.logResponse());
-    this.app.use(AuditMiddleware.logCriticalOperation());
     this.app.use(AuditMiddleware.monitorPerformance());
 
-    // Rate limiting (stricter for VPS access)
+    // Rate limiting
     this.app.use(AuthMiddleware.rateLimit(50, 60000)); // 50 requests per minute
 
     // Input sanitization
     this.app.use(ValidationMiddleware.sanitizeInput());
 
-    this.logger.info('Concierge service middleware setup completed');
+    this.logger.info('Production service middleware setup completed');
   }
 
   private setupRoutes(): void {
@@ -92,40 +66,34 @@ class ConciergeServer {
     this.app.use('/health', healthRoutes);
     this.app.use('/healthz', healthRoutes);
 
-    // API routes (require service authentication + validation for critical ops)
+    // API routes (require service authentication)
     this.app.use('/api/v1',
       AuthMiddleware.validateInternalAuth(),
       ValidationMiddleware.validateEnvelope(),
-      ValidationMiddleware.validatePayload('concierge'),
+      ValidationMiddleware.validatePayload('production'),
       AuditMiddleware.logEnvelopeCommunication(),
-      AuthMiddleware.validateCriticalOperation(), // Validation gates for dangerous operations
-      apiRoutes(this.vpsManager, this.systemMonitor)
+      apiRoutes()
     );
 
     // Root route
     this.app.get('/', (req, res) => {
       res.json({
-        service: 'Umbra VPS Concierge',
+        service: 'Umbra Production Module',
         version: '1.0.0',
         status: 'running',
         capabilities: [
-          'VPS monitoring',
-          'Command execution',
-          'Container management',
-          'System status',
-          'Client lifecycle management',
-          'Script validation'
+          'Workflow architecture planning',
+          'Claude → GPT → MCP pipeline',
+          'JSON n8n generation',
+          'MCP lifecycle management',
+          '3-retry logic with fallbacks'
         ],
-        security: {
-          exclusiveVPSAccess: true,
-          validationRequired: true,
-          auditLogging: true
-        },
+        pipeline: ['claude', 'gpt', 'mcp'],
         timestamp: new Date().toISOString()
       });
     });
 
-    this.logger.info('Concierge service routes setup completed');
+    this.logger.info('Production service routes setup completed');
   }
 
   private setupErrorHandling(): void {
@@ -159,7 +127,7 @@ class ConciergeServer {
       });
     });
 
-    this.logger.info('Concierge service error handling setup completed');
+    this.logger.info('Production service error handling setup completed');
   }
 
   public async start(): Promise<void> {
@@ -167,26 +135,25 @@ class ConciergeServer {
       // Initialize service authentication
       const serviceKeys = {
         umbra: process.env.UMBRA_API_KEY!,
-        business: process.env.BUSINESS_API_KEY!
+        business: process.env.BUSINESS_API_KEY!,
+        mcp: process.env.MCP_API_KEY!
       };
 
       AuthMiddleware.initializeServices(serviceKeys);
 
-      // Start system monitoring
-      this.systemMonitor.startMonitoring();
-
       // Start server
       this.app.listen(this.port, () => {
-        this.logger.info('VPS Concierge Service started', {
+        this.logger.info('Production Module started', {
           port: this.port,
           environment: process.env.NODE_ENV || 'development',
-          vpsHost: process.env.VPS_HOST,
+          openrouterEnabled: !!process.env.OPENROUTER_API_KEY,
+          mcpEnabled: !!process.env.MCP_URL,
           timestamp: new Date().toISOString()
         });
       });
 
     } catch (error) {
-      this.logger.error('Failed to start Concierge service', { error: (error as Error).message });
+      this.logger.error('Failed to start Production service', { error: (error as Error).message });
       process.exit(1);
     }
   }
@@ -198,11 +165,11 @@ class ConciergeServer {
 
 // Start server if this file is run directly
 if (require.main === module) {
-  const server = new ConciergeServer();
+  const server = new ProductionServer();
   server.start().catch(error => {
-    console.error('Failed to start Concierge server:', error);
+    console.error('Failed to start Production server:', error);
     process.exit(1);
   });
 }
 
-export default ConciergeServer;
+export default ProductionServer;

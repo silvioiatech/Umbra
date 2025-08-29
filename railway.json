@@ -47,6 +47,54 @@
         "PORT": "9090",
         "NODE_ENV": "production"
       }
+    },
+    "business": {
+      "name": "business",
+      "build": {
+        "builder": "DOCKERFILE",
+        "buildContext": ".",
+        "dockerfilePath": "services/business/Dockerfile"
+      },
+      "variables": {
+        "PORT": "8082",
+        "NODE_ENV": "production"
+      }
+    },
+    "production": {
+      "name": "production",
+      "build": {
+        "builder": "DOCKERFILE",
+        "buildContext": ".",
+        "dockerfilePath": "services/production/Dockerfile"
+      },
+      "variables": {
+        "PORT": "8083",
+        "NODE_ENV": "production"
+      }
+    },
+    "creator": {
+      "name": "creator",
+      "build": {
+        "builder": "DOCKERFILE",
+        "buildContext": ".",
+        "dockerfilePath": "services/creator/Dockerfile"
+      },
+      "variables": {
+        "PORT": "8084",
+        "NODE_ENV": "production"
+      }
+    },
+    "mcp": {
+      "name": "mcp",
+      "build": {
+        "builder": "DOCKERFILE",
+        "buildContext": ".",
+        "dockerfilePath": "services/mcp/Dockerfile"
+      },
+      "variables": {
+        "PORT": "8085",
+        "NODE_ENV": "production"
+      }
     }
   }
 }
