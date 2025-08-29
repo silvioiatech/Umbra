@@ -11,7 +11,7 @@ echo "🔨 Building Umbra Bot System..."
 echo "📦 Building shared package..."
 cd shared
 npm install
-npm run build
+npm run build:clean
 cd ..
 
 echo "✅ Shared package built successfully"

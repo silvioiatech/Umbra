@@ -59,9 +59,14 @@ npm install
 
 2. **Build shared components:**
 ```bash
+# Build shared package first (required for all services)
 cd shared
 npm install
-npm run build
+npm run build:clean
+cd ..
+
+# Or use the automated build script
+./scripts/build.sh
 ```
 
 3. **Configure environment variables:**
@@ -78,6 +83,11 @@ docker-compose up --build
 ### Railway Deployment
 
 **One-Click Deployment**: Connect your repository to Railway and all 6 services will be automatically deployed.
+
+**Build Process**: The multi-stage Docker builds automatically handle the correct build order:
+1. Build `@umbra/shared` module first with all dependencies  
+2. Copy built shared module to each service
+3. Build individual services with shared module available
 
 ```bash
 # Railway automatically deploys these services:
