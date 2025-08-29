@@ -95,6 +95,11 @@ export interface FinanceResult {
   };
   reportData?: any;
   anomalies?: string[];
+  rawText?: string;
+  storageKey?: string;
+  documentUrl?: string;
+  confidence?: number;
+  needsReview?: boolean;
 }
 
 export interface BusinessResult {

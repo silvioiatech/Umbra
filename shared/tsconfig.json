@@ -17,6 +17,8 @@
     "emitDecoratorMetadata": true,
     "noImplicitAny": false,
     "strictNullChecks": false,
+    "strictPropertyInitialization": false,
+    "useUnknownInCatchVariables": false,
     "composite": true
   },
   "include": [
