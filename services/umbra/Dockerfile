@@ -16,15 +16,15 @@ RUN npm install --include=dev
 # Copy shared source code first
 COPY shared/ ./shared/
 
-# Build shared package (force clean build)
-RUN cd shared && rm -f tsconfig.tsbuildinfo && npx tsc --build
+# Build shared package (force clean build) using node to run tsc
+RUN cd shared && rm -f tsconfig.tsbuildinfo && node ../node_modules/typescript/lib/tsc.js --build
 
 # Copy service source code
 COPY services/umbra/src ./services/umbra/src
 COPY services/umbra/tsconfig.json ./services/umbra/
 
-# Build the service
-RUN cd services/umbra && npx tsc
+# Build the service using node to run tsc
+RUN cd services/umbra && node ../../node_modules/typescript/lib/tsc.js
 
 # Production stage
 FROM node:20-alpine AS production

@@ -1,56 +1,69 @@
-# Multi-stage build to handle shared package dependency
-FROM node:20-alpine AS shared-builder
+# Multi-stage build for TypeScript monorepo
+FROM node:20-alpine AS base
 
-WORKDIR /app/shared
-COPY shared/package*.json ./
-RUN npm install
-
-COPY shared/ ./
-RUN npm run build
-
-# Main service build
-FROM node:20-alpine AS service-builder
-
+# Set working directory
 WORKDIR /app
 
-# Copy shared package from previous stage
-COPY --from=shared-builder /app/shared /app/shared
+# Copy package.json files for better Docker layer caching
+COPY package*.json ./
+COPY tsconfig.json ./
+COPY shared/package*.json ./shared/
+COPY services/creator/package*.json ./services/creator/
 
-# Copy service package files and install dependencies
-COPY services/creator/package*.json ./
-RUN npm install
+# Install all dependencies using workspace
+RUN npm install --include=dev
 
-# Copy service source and build configuration
-COPY services/creator/src ./src
-COPY services/creator/tsconfig.json ./
+# Copy shared source code first
+COPY shared/ ./shared/
 
-# Build the application
-RUN npm run build
+# Build shared package (force clean build) using node to run tsc
+RUN cd shared && rm -f tsconfig.tsbuildinfo && node ../node_modules/typescript/lib/tsc.js --build
+
+# Copy service source code
+COPY services/creator/src ./services/creator/src
+COPY services/creator/tsconfig.json ./services/creator/
+
+# Build the service using node to run tsc
+RUN cd services/creator && node ../../node_modules/typescript/lib/tsc.js
 
 # Production stage
-FROM node:20-alpine
-
-# Install curl for health checks
-RUN apk add --no-cache curl
+FROM node:20-alpine AS production
 
 WORKDIR /app
 
-# Copy only production dependencies and built code
-COPY --from=service-builder /app/dist ./dist
-COPY --from=service-builder /app/package*.json ./
+# Create non-root user for security
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nodejs -u 1001
+
+# Copy built application
+COPY --from=base /app/services/creator/dist ./dist
+COPY --from=base /app/services/creator/package*.json ./
+
+# Copy built shared package as a dependency
+COPY --from=base /app/shared/dist ./node_modules/@umbra/shared/dist
+COPY --from=base /app/shared/package.json ./node_modules/@umbra/shared/
 
 # Install only production dependencies
-RUN npm install --only=production && npm cache clean --force
+RUN npm ci --only=production --no-audit --no-fund && \
+    npm cache clean --force
 
-# Create uploads directory
-RUN mkdir -p /tmp/uploads
+# Create uploads directory for media generation
+RUN mkdir -p /tmp/uploads && chown nodejs:nodejs /tmp/uploads
+
+# Set proper ownership
+RUN chown -R nodejs:nodejs /app
+USER nodejs
+
+# Environment variables
+ENV NODE_ENV=production
+ENV PORT=8084
 
 # Expose port
 EXPOSE 8084
 
-# Health check
+# Health check using Node.js built-in net module
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:8084/health || exit 1
+  CMD node -e "require('net').createConnection(8084, 'localhost').on('connect', () => process.exit(0)).on('error', () => process.exit(1))"
 
 # Start the service
 CMD ["npm", "start"]
