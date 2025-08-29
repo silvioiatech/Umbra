@@ -228,11 +228,14 @@ Return only the workflow JSON, no additional text.
 
 /**
  * Step 3: MCP Workflow Management
+ * NOTE: MCP service is hosted externally and accessed via MCP_URL environment variable
+ * For Railway deployment, configure MCP_URL to point to the external MCP service
  */
 async function mcpWorkflowManagement(workflowJson: any, reqId: string): Promise<any> {
   logger.info('MCP workflow management started', { reqId });
   
   try {
+    // MCP service is external - configure MCP_URL to point to external service
     const mcpUrl = process.env.MCP_URL || 'http://localhost:8085';
     
     // Send to MCP for validation and import

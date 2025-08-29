@@ -53,11 +53,11 @@ UMBRA_API_KEY=same_as_finance_api_key_above
 2. **Create Services**: Create separate Railway services for each module:
    - umbra (main agent)
    - finance
-   - concierge (deploy to your VPS instead)
+   - concierge (deploy to Railway, not VPS - VPS is only for n8n instances)
    - business
    - production
    - creator
-   - mcp
+   - **Note**: MCP service is hosted externally and not deployed to Railway
 
 3. **Configure Build**: Each service has a `railway.json` file with build configuration
 
@@ -73,7 +73,7 @@ FINANCE_URL=https://finance-production.railway.app
 BUSINESS_URL=https://business-production.railway.app
 PRODUCTION_URL=https://production-production.railway.app
 CREATOR_URL=https://creator-production.railway.app
-MCP_URL=https://mcp-production.railway.app
+MCP_URL=https://your-external-mcp-service.com
 ```
 
 ### Step 4: Configure Telegram Webhook
@@ -89,11 +89,15 @@ curl -X POST "https://api.telegram.org/bot${BOT_TOKEN}/setWebhook" \
   }'
 ```
 
-## VPS Deployment (Concierge)
+## VPS Purpose and Setup
 
-The VPS Concierge service should be deployed directly on your VPS for security:
+**Important**: The VPS is only used for:
+- n8n workflow instances (staging and production)
+- Database server (optional, eventually)
 
-### Step 1: Prepare VPS
+All other services, including **Concierge**, deploy to Railway.
+
+### Step 1: Prepare VPS for n8n
 
 ```bash
 # Update system
@@ -111,41 +115,70 @@ sudo usermod -aG docker $USER
 sudo npm install -g pm2
 ```
 
-### Step 2: Deploy Concierge
+### Step 2: Deploy n8n Instances
 
 ```bash
-# Clone repository
-git clone https://github.com/your-username/Umbra.git
-cd Umbra
+# Create docker-compose.yml for n8n staging and production
+mkdir -p ~/n8n-deployment
+cd ~/n8n-deployment
 
-# Install dependencies
-npm install
-cd shared && npm install && npm run build && cd ..
-cd services/concierge && npm install
+# Create docker-compose configuration for n8n instances
+cat > docker-compose.yml << 'EOF'
+version: '3.8'
 
-# Create environment file
-cp .env.example .env
-# Edit .env with your configuration
+services:
+  n8n-staging:
+    image: n8nio/n8n
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=admin
+      - N8N_BASIC_AUTH_PASSWORD=your_secure_password
+      - N8N_HOST=0.0.0.0
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+    volumes:
+      - n8n_data_staging:/home/node/.n8n
+    restart: unless-stopped
 
-# Build and start
-npm run build
-pm2 start dist/server.js --name concierge
+  n8n-production:
+    image: n8nio/n8n
+    ports:
+      - "5679:5678"
+    environment:
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=admin
+      - N8N_BASIC_AUTH_PASSWORD=your_secure_password
+      - N8N_HOST=0.0.0.0
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+    volumes:
+      - n8n_data_production:/home/node/.n8n
+    restart: unless-stopped
 
-# Save PM2 configuration
-pm2 save
-pm2 startup
+volumes:
+  n8n_data_staging:
+  n8n_data_production:
+EOF
+
+# Start n8n instances
+docker-compose up -d
 ```
 
 ### Step 3: Configure Firewall
 
 ```bash
-# Allow SSH, HTTP, HTTPS, and Concierge port
+# Allow SSH, HTTP, HTTPS, and n8n ports
 sudo ufw allow ssh
 sudo ufw allow 80
 sudo ufw allow 443  
-sudo ufw allow 9090
+sudo ufw allow 5678  # n8n staging
+sudo ufw allow 5679  # n8n production
 sudo ufw enable
 ```
+
+**Note**: Configure your external MCP service to connect to these n8n instances using the VPS IP and ports 5678/5679.
 
 ## Database Setup (Optional)
 

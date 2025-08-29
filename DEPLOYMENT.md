@@ -28,15 +28,16 @@ This guide covers deploying the complete 7-service Umbra Bot system to Railway.
 
 ### 2. Deploy All Services
 
-Railway will create all 7 services based on the configuration:
+Railway will create all 6 services based on the configuration:
 
 - **umbra** (port 8080) - Main Agent
 - **finance** (port 8081) - Financial processing
-- **concierge** (port 9090) - VPS management  
+- **concierge** (port 9090) - VPS management (deploys to Railway, not VPS)
 - **business** (port 8082) - Client lifecycle
 - **production** (port 8083) - Workflow creation
 - **creator** (port 8084) - Media generation
-- **mcp** (port 8085) - n8n management
+
+**Note**: MCP service is hosted externally and not deployed to Railway
 
 ### 3. Configure Environment Variables
 
@@ -103,10 +104,10 @@ PORT=8083
 OPENROUTER_API_KEY=your_openrouter_key
 OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
 OPENROUTER_SITE_URL=https://umbra.ai
-MCP_URL=https://mcp-production.railway.app
+MCP_URL=https://your-external-mcp-service.com
 UMBRA_API_KEY=same_as_production_key_above
 BUSINESS_API_KEY=same_as_business_key_above
-MCP_API_KEY=same_as_mcp_key_above
+MCP_API_KEY=your_external_mcp_api_key
 ```
 
 #### Creator Service
@@ -125,15 +126,7 @@ BOT_TOKEN=your_telegram_bot_token
 UMBRA_API_KEY=same_as_creator_key_above
 ```
 
-#### MCP Service
-```
-NODE_ENV=production
-PORT=8085
-N8N_API_URL=https://your-n8n-instance.com/api/v1
-N8N_PROD_API_URL=https://your-n8n-prod.com/api/v1
-N8N_API_KEY=your_n8n_api_key
-PRODUCTION_API_KEY=same_as_mcp_key_above
-```
+**Note**: MCP service is hosted externally. Configure your external MCP service with the n8n instance URLs from your VPS.
 
 ### 4. Generate API Keys
 
@@ -177,7 +170,6 @@ curl https://concierge-production.railway.app/health
 curl https://business-production.railway.app/health
 curl https://production-production.railway.app/health
 curl https://creator-production.railway.app/health
-curl https://mcp-production.railway.app/health
 ```
 
 ### 2. Test Telegram Bot

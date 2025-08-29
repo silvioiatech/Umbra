@@ -83,18 +83,6 @@
         "PORT": "8084",
         "NODE_ENV": "production"
       }
-    },
-    "mcp": {
-      "name": "mcp",
-      "build": {
-        "builder": "DOCKERFILE",
-        "buildContext": ".",
-        "dockerfilePath": "services/mcp/Dockerfile"
-      },
-      "variables": {
-        "PORT": "8085",
-        "NODE_ENV": "production"
-      }
     }
   }
 }
