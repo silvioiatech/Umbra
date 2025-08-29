@@ -131,30 +131,36 @@ export class ModuleRouter {
     // Map actions to specific endpoints
     switch (moduleName) {
       case 'finance':
-        if (action === 'ocr' || action === 'extract') return endpoints.ocr;
-        if (action === 'report') return endpoints.report;
-        return endpoints.extract;
+        const financeEndpoints = endpoints as typeof API_ENDPOINTS.finance;
+        if (action === 'ocr' || action === 'extract') return financeEndpoints.ocr;
+        if (action === 'report') return financeEndpoints.report;
+        return financeEndpoints.extract;
         
       case 'concierge':
-        if (action === 'monitor') return endpoints.monitor;
-        if (action === 'validate') return endpoints.validate;
-        return endpoints.execute;
+        const conciergeEndpoints = endpoints as typeof API_ENDPOINTS.concierge;
+        if (action === 'monitor') return conciergeEndpoints.monitor;
+        if (action === 'validate') return conciergeEndpoints.validate;
+        return conciergeEndpoints.execute;
         
       case 'business':
-        if (action === 'manage_client') return endpoints.clients;
-        return endpoints.delegate;
+        const businessEndpoints = endpoints as typeof API_ENDPOINTS.business;
+        if (action === 'manage_client') return businessEndpoints.clients;
+        return businessEndpoints.delegate;
         
       case 'production':
-        if (action === 'deploy') return endpoints.deploy;
-        return endpoints.workflow;
+        const productionEndpoints = endpoints as typeof API_ENDPOINTS.production;
+        if (action === 'deploy') return productionEndpoints.deploy;
+        return productionEndpoints.workflow;
         
       case 'creator':
-        if (action.startsWith('generate')) return endpoints.generate;
-        return endpoints.media;
+        const creatorEndpoints = endpoints as typeof API_ENDPOINTS.creator;
+        if (action.startsWith('generate')) return creatorEndpoints.generate;
+        return creatorEndpoints.media;
         
       case 'mcp':
-        if (action === 'validate') return endpoints.validate;
-        return endpoints.lifecycle;
+        // Note: MCP service endpoints may not be in API_ENDPOINTS, using fallback
+        if (action === 'validate') return '/api/v1/validate';
+        return '/api/v1/lifecycle';
         
       default:
         return '/api/v1/process';
