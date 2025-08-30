@@ -21,7 +21,9 @@
     "useUnknownInCatchVariables": false,
     "baseUrl": ".",
     "paths": {
-      "@shared/*": ["./shared/src/*"]
+      "@shared/*": ["./shared/src/*"],
+      "@umbra/shared": ["./shared/src/index"],
+      "@umbra/shared/*": ["./shared/src/*"]
     }
   },
   "include": [
