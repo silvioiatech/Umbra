@@ -1,0 +1,36 @@
+# Umbra Complete - Consolidated Requirements
+# All dependencies for the monolithic Python implementation
+
+# Core FastAPI and web framework
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+python-multipart>=0.0.6
+
+# HTTP client and async support
+httpx>=0.25.0
+aiofiles>=23.0.0
+
+# Data validation and parsing
+pydantic>=2.5.0
+python-dotenv>=1.0.0
+
+# Image processing and OCR (optional but recommended)
+pytesseract>=0.3.10
+opencv-python>=4.8.0
+pillow>=10.1.0
+numpy>=1.24.0
+
+# PDF processing
+pypdf2>=3.0.1
+pdf2image>=1.16.0
+
+# SSH client for Concierge module
+paramiko>=3.3.0
+
+# Additional utilities
+requests>=2.31.0
+python-jose[cryptography]>=3.3.0
+
+# Development and testing
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
