@@ -1,6 +1,6 @@
 # Complete Deployment Guide - Umbra Bot System
 
-This guide covers deploying the complete 7-service Umbra Bot system to Railway.
+This guide covers deploying the complete 6-service Umbra Bot system to Railway.
 
 ## Prerequisites
 
@@ -37,8 +37,6 @@ Railway will create all 6 services based on the configuration:
 - **production** (port 8083) - Workflow creation
 - **creator** (port 8084) - Media generation
 
-**Note**: MCP service is hosted externally and not deployed to Railway
-
 ### 3. Configure Environment Variables
 
 For each service, add the required environment variables. Here's the breakdown:
@@ -59,7 +57,6 @@ CONCIERGE_API_KEY=generate_secure_key
 BUSINESS_API_KEY=generate_secure_key
 PRODUCTION_API_KEY=generate_secure_key
 CREATOR_API_KEY=generate_secure_key
-MCP_API_KEY=generate_secure_key
 ```
 
 #### Finance Service
@@ -104,10 +101,8 @@ PORT=8083
 OPENROUTER_API_KEY=your_openrouter_key
 OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
 OPENROUTER_SITE_URL=https://umbra.ai
-MCP_URL=https://your-external-mcp-service.com
 UMBRA_API_KEY=same_as_production_key_above
 BUSINESS_API_KEY=same_as_business_key_above
-MCP_API_KEY=your_external_mcp_api_key
 ```
 
 #### Creator Service
@@ -124,9 +119,6 @@ STORAGE_SECRET_KEY=your_r2_secret_key
 STORAGE_BUCKET=umbra-media
 BOT_TOKEN=your_telegram_bot_token
 UMBRA_API_KEY=same_as_creator_key_above
-```
-
-**Note**: MCP service is hosted externally. Configure your external MCP service with the n8n instance URLs from your VPS.
 
 ### 4. Generate API Keys
 
@@ -144,7 +136,7 @@ Use the same key values across services that need to communicate.
 Update service environment variables with actual Railway URLs:
 
 1. Get the deployed URLs from Railway dashboard
-2. Update `CONCIERGE_URL`, `PRODUCTION_URL`, `MCP_URL` variables
+2. Update `CONCIERGE_URL`, `PRODUCTION_URL` variables
 3. Set the main `WEBHOOK_URL` for Telegram
 
 ### 6. Set Up Telegram Webhook

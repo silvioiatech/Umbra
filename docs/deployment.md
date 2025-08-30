@@ -31,7 +31,6 @@ CONCIERGE_API_KEY=generate_secure_key
 BUSINESS_API_KEY=generate_secure_key
 PRODUCTION_API_KEY=generate_secure_key
 CREATOR_API_KEY=generate_secure_key
-MCP_API_KEY=generate_secure_key
 ```
 
 #### Finance Service
@@ -57,7 +56,6 @@ UMBRA_API_KEY=same_as_finance_api_key_above
    - business
    - production
    - creator
-   - **Note**: MCP service is hosted externally and not deployed to Railway
 
 3. **Configure Build**: Each service has a `railway.json` file with build configuration
 
@@ -73,7 +71,6 @@ FINANCE_URL=https://finance-production.railway.app
 BUSINESS_URL=https://business-production.railway.app
 PRODUCTION_URL=https://production-production.railway.app
 CREATOR_URL=https://creator-production.railway.app
-MCP_URL=https://your-external-mcp-service.com
 ```
 
 ### Step 4: Configure Telegram Webhook
@@ -178,7 +175,6 @@ sudo ufw allow 5679  # n8n production
 sudo ufw enable
 ```
 
-**Note**: Configure your external MCP service to connect to these n8n instances using the VPS IP and ports 5678/5679.
 
 ## Database Setup (Optional)
 

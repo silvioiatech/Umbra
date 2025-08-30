@@ -157,11 +157,6 @@ export class ModuleRouter {
         if (action.startsWith('generate')) return creatorEndpoints.generate;
         return creatorEndpoints.media;
         
-      case 'mcp':
-        // Note: MCP service endpoints may not be in API_ENDPOINTS, using fallback
-        if (action === 'validate') return '/api/v1/validate';
-        return '/api/v1/lifecycle';
-        
       default:
         return '/api/v1/process';
     }

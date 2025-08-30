@@ -200,7 +200,7 @@ Return JSON with:
 {
   "intent": "specific_intent_name",
   "confidence": 0.0-1.0,
-  "targetModule": "finance|concierge|business|production|creator|mcp|umbra"
+  "targetModule": "finance|concierge|business|production|creator|umbra"
 }
 
 Intents:

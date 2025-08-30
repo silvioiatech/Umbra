@@ -135,9 +135,6 @@ export class ValidationMiddleware {
         case 'creator':
           this.validateCreatorPayload(payload, errors);
           break;
-        case 'mcp':
-          this.validateMCPPayload(payload, errors);
-          break;
         case 'umbra':
           this.validateUmbraPayload(payload, errors);
           break;
@@ -284,23 +281,6 @@ export class ValidationMiddleware {
     }
   }
 
-  private static validateMCPPayload(payload: any, errors: string[]): void {
-    const validActions = ['validate', 'dry_run', 'import', 'enable', 'test_run', 'promote', 'export', 'rollback'];
-
-    if (!validActions.includes(payload.action)) {
-      errors.push(`Invalid action for MCP service: ${payload.action}`);
-    }
-
-    if (['import', 'enable', 'test_run', 'promote', 'export', 'rollback'].includes(payload.action)) {
-      if (!payload.workflowId && !payload.workflowJson) {
-        errors.push('Either workflowId or workflowJson is required');
-      }
-    }
-
-    if (payload.environment && !['staging', 'production'].includes(payload.environment)) {
-      errors.push('environment must be either "staging" or "production"');
-    }
-  }
 
   private static validateUmbraPayload(payload: any, errors: string[]): void {
     const validActions = ['classify', 'route', 'execute', 'clarify'];
