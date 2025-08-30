@@ -3,9 +3,42 @@ Configuration management for Umbra Bot using Pydantic BaseSettings.
 """
 
 import os
-from typing import List, Optional
-from pydantic import Field, field_validator
-from pydantic_settings import BaseSettings
+import re
+from typing import List, Optional, Union, Annotated
+from pydantic import Field, field_validator, ConfigDict, BeforeValidator
+from pydantic_settings import BaseSettings, SettingsConfigDict, EnvSettingsSource
+from pydantic_settings.sources import PydanticBaseSettingsSource
+
+
+class CustomEnvSettingsSource(EnvSettingsSource):
+    """Custom environment settings source that doesn't parse List fields as JSON."""
+    
+    def prepare_field_value(
+        self, field_name: str, field, field_value, value_is_complex: bool
+    ):
+        # Don't try to parse allowed_user_ids as JSON - let the validator handle it
+        if field_name == 'allowed_user_ids':
+            return field_value
+        # Use the default behavior for other fields
+        return super().prepare_field_value(field_name, field, field_value, value_is_complex)
+
+
+def parse_user_ids(v):
+    """Parse comma-separated user IDs string into list."""
+    if isinstance(v, str):
+        # Remove whitespace and split by comma
+        user_ids = [uid.strip() for uid in v.split(",") if uid.strip()]
+        
+        # Reject empty or whitespace-only values with explicit error
+        if not user_ids:
+            raise ValueError("ALLOWED_USER_IDS cannot be empty or contain only whitespace")
+        
+        return user_ids
+    elif isinstance(v, int):
+        return [str(v)]
+    elif isinstance(v, list):
+        return v
+    return v
 
 
 class UmbraConfig(BaseSettings):
@@ -15,6 +48,14 @@ class UmbraConfig(BaseSettings):
     Uses Pydantic BaseSettings to load configuration from environment variables
     with validation and type conversion.
     """
+    
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        # Disable automatic complex type parsing for all fields
+        env_ignore_empty=True,
+    )
     
     # Required configuration
     telegram_bot_token: str = Field(..., env="TELEGRAM_BOT_TOKEN")
@@ -35,7 +76,11 @@ class UmbraConfig(BaseSettings):
     
     # Monitoring configuration
     monitoring_interval: int = Field(30, env="MONITORING_INTERVAL")
-    health_check_timeout: int = Field(5, env="HEALTH_CHECK_TIMEOUT")
+    health_check_timeout: int = Field(
+        5, 
+        env="HEALTH_CHECK_TIMEOUT",
+        description="Health check timeout duration. Accepts integers (seconds) or duration strings like '3s', '1500ms', '2min'."
+    )
     
     # VPS/SSH configuration (for future concierge module)
     vps_host: Optional[str] = Field(None, env="VPS_HOST")
@@ -60,19 +105,87 @@ class UmbraConfig(BaseSettings):
     def parse_user_ids(cls, v):
         """Parse comma-separated user IDs string into list."""
         if isinstance(v, str):
-            return [uid.strip() for uid in v.split(",") if uid.strip()]
+            # Remove whitespace and split by comma
+            user_ids = [uid.strip() for uid in v.split(",") if uid.strip()]
+            
+            # Reject empty or whitespace-only values with explicit error
+            if not user_ids:
+                raise ValueError("ALLOWED_USER_IDS cannot be empty or contain only whitespace")
+            
+            return user_ids
         elif isinstance(v, int):
             return [str(v)]
+        elif isinstance(v, list):
+            return v
         return v
-    
+
+    @field_validator("health_check_timeout", mode="before")
+    @classmethod
+    def parse_health_check_timeout(cls, v):
+        """
+        Parse health check timeout duration.
+        
+        Accepts:
+        - Integer values (seconds): 5, 10, 30
+        - String integer values: "5", "10", "30"
+        - Duration strings: "3s", "1500ms", "2min", "1m"
+        
+        Returns integer seconds with minimum value of 1.
+        """
+        if isinstance(v, int):
+            return max(1, v)  # Ensure minimum 1 second
+        
+        if isinstance(v, str):
+            v = v.strip()
+            
+            # Try parsing as plain integer first
+            try:
+                timeout_seconds = int(v)
+                return max(1, timeout_seconds)  # Ensure minimum 1 second
+            except ValueError:
+                pass
+            
+            # Parse duration strings using regex
+            duration_pattern = r'^(\d+(?:\.\d+)?)\s*(s|ms|m|min)$'
+            match = re.match(duration_pattern, v, re.IGNORECASE)
+            
+            if not match:
+                raise ValueError(f"Invalid duration format '{v}'. Use formats like: 5, '3s', '1500ms', '2min'")
+            
+            number_str, unit = match.groups()
+            
+            try:
+                number = float(number_str)
+            except ValueError:
+                raise ValueError(f"Invalid number in duration '{v}'")
+            
+            # Convert to seconds based on unit
+            unit = unit.lower()
+            if unit == 's':
+                seconds = number
+            elif unit == 'ms':
+                seconds = number / 1000.0
+            elif unit in ('m', 'min'):
+                seconds = number * 60
+            else:
+                raise ValueError(f"Unsupported time unit '{unit}'. Supported units: s, ms, m, min")
+            
+            # Floor the result and ensure minimum 1 second
+            return max(1, int(seconds))
+        
+        raise ValueError(f"Invalid health_check_timeout value: {v}")
+
     @field_validator("telegram_bot_token")
     @classmethod
     def validate_bot_token(cls, v):
         """Validate Telegram bot token format."""
-        if not v or not v.startswith(("bot", "BOT")) and ":" not in v:
-            # Basic validation - should contain a colon
-            if ":" not in v:
-                raise ValueError("Invalid Telegram bot token format")
+        if not v:
+            raise ValueError("TELEGRAM_BOT_TOKEN is required")
+            
+        # Telegram bot tokens must contain a colon
+        if ":" not in v:
+            raise ValueError("Invalid Telegram bot token format: must contain a colon (:)")
+        
         return v
     
     @field_validator("log_level")
@@ -128,11 +241,17 @@ class UmbraConfig(BaseSettings):
         
         return module_requirements.get(module_name, False)
     
-    class Config:
-        """Pydantic configuration."""
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        case_sensitive = False
+    @classmethod
+    def settings_customise_sources(
+        cls,
+        settings_cls,
+        init_settings: PydanticBaseSettingsSource,
+        env_settings: PydanticBaseSettingsSource,
+        dotenv_settings: PydanticBaseSettingsSource,
+        file_secret_settings: PydanticBaseSettingsSource,
+    ) -> tuple[PydanticBaseSettingsSource, ...]:
+        # Replace the default env_settings with our custom one
+        return init_settings, CustomEnvSettingsSource(settings_cls), dotenv_settings, file_secret_settings
 
 
 # Global config instance
