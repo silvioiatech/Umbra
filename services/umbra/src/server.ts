@@ -162,8 +162,7 @@ class UmbraServer {
         concierge: process.env.CONCIERGE_API_KEY!,
         business: process.env.BUSINESS_API_KEY!,
         production: process.env.PRODUCTION_API_KEY!,
-        creator: process.env.CREATOR_API_KEY!,
-        mcp: process.env.MCP_API_KEY!
+        creator: process.env.CREATOR_API_KEY!
       };
 
       AuthMiddleware.initializeServices(serviceKeys);

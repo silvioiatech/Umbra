@@ -83,12 +83,12 @@ class ProductionServer {
         status: 'running',
         capabilities: [
           'Workflow architecture planning',
-          'Claude → GPT → MCP pipeline',
+          'Claude → GPT pipeline',
           'JSON n8n generation',
-          'MCP lifecycle management',
-          '3-retry logic with fallbacks'
+          'Workflow validation',
+          'Retry logic with fallbacks'
         ],
-        pipeline: ['claude', 'gpt', 'mcp'],
+        pipeline: ['claude', 'gpt', 'validation'],
         timestamp: new Date().toISOString()
       });
     });
@@ -135,8 +135,7 @@ class ProductionServer {
       // Initialize service authentication
       const serviceKeys = {
         umbra: process.env.UMBRA_API_KEY!,
-        business: process.env.BUSINESS_API_KEY!,
-        mcp: process.env.MCP_API_KEY!
+        business: process.env.BUSINESS_API_KEY!
       };
 
       AuthMiddleware.initializeServices(serviceKeys);
@@ -147,7 +146,6 @@ class ProductionServer {
           port: this.port,
           environment: process.env.NODE_ENV || 'development',
           openrouterEnabled: !!process.env.OPENROUTER_API_KEY,
-          mcpEnabled: !!process.env.MCP_URL,
           timestamp: new Date().toISOString()
         });
       });

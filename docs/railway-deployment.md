@@ -8,7 +8,6 @@ This guide explains how to deploy the Umbra Bot System to Railway using the **on
 2. **GitHub Repository**: Connected to Railway
 3. **Environment Variables**: Prepared for each service
 4. **API Keys**: OpenRouter, Telegram Bot, S3/R2, etc.
-5. **External MCP Service**: MCP service URL (hosted separately)
 
 ## One-Click Deployment Steps
 
@@ -29,8 +28,6 @@ Railway will automatically create all 6 services from the root `railway.json`:
 - **business** (port 8082) - Client lifecycle
 - **production** (port 8083) - Workflow creation
 - **creator** (port 8084) - Media generation
-
-**Note**: MCP service is NOT deployed to Railway - it's hosted externally.
 
 ### 3. Configure Environment Variables
 
@@ -74,19 +71,7 @@ VPS_PORT=22
 UMBRA_API_KEY=secure_concierge_key
 ```
 
-### 4. Configure External MCP Service
-
-Since MCP is hosted externally, configure the Production service with the external MCP URL:
-
-```
-# In Production Service Environment Variables
-MCP_URL=https://your-external-mcp-service.com
-MCP_API_KEY=your_external_mcp_api_key
-```
-
-**Important**: Your external MCP service should be configured to connect to the n8n instances on your VPS.
-
-### 5. Update Service URLs
+### 4. Update Service URLs
 
 After deployment, update the service URL environment variables in the Umbra service:
 
@@ -95,7 +80,7 @@ FINANCE_URL=https://finance-production.railway.app
 CONCIERGE_URL=https://concierge-production.railway.app
 ```
 
-### 6. Set Up Telegram Webhook
+### 5. Set Up Telegram Webhook
 
 Configure your Telegram bot webhook to point to your Railway deployment:
 
@@ -149,13 +134,10 @@ Monitor these endpoints to ensure services are running properly.
 2. **Build Context Errors**: Ensure using root directory as build context
 3. **Port Conflicts**: Verify each service uses its designated port
 4. **API Key Mismatches**: Ensure inter-service API keys match
-5. **External MCP Service**: Verify MCP_URL points to correct external service
-6. **VPS Connectivity**: Ensure external MCP can reach n8n instances on VPS
-7. **Nixpacks Auto-Detection**: If Railway uses Nixpacks instead of Dockerfiles, the `railway.toml` file forces Railway to use the multi-service configuration
+5. **Nixpacks Auto-Detection**: If Railway uses Nixpacks instead of Dockerfiles, the `railway.toml` file forces Railway to use the multi-service configuration
 
 ### One-Click Deployment Notes
 - Railway automatically deploys all 6 services from the root configuration
-- MCP service is intentionally excluded from Railway deployment
 - Concierge service deploys to Railway (not VPS) - VPS is only for n8n instances
 
 ## Security Notes

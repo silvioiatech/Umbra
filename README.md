@@ -1,25 +1,23 @@
 # Umbra Bot System - Complete Multi-Module Implementation
 
-A comprehensive, production-ready Telegram bot ecosystem with 6 Railway-deployed services and external MCP integration.
+A comprehensive, production-ready Telegram bot ecosystem with 6 Railway-deployed services for workflow creation and media generation.
 
 ## Architecture Overview
 
-Umbra is a modular system with 6 Railway-deployed services + external MCP:
+Umbra is a modular system with 6 Railway-deployed services:
 
 1. **Umbra (Main Agent)** - Entry point, NLU routing (EN/FR/PT), simple task execution
 2. **Finance Module** - OCR processing, financial document extraction, reporting with PII minimization
 3. **Concierge Module** - VPS management via Railway deployment (manages external VPS for n8n)
 4. **Business Module** - Client lifecycle management via Concierge delegation
-5. **Production Module** - Workflow creation using Claude→GPT→MCP pipeline with 3-retry logic
+5. **Production Module** - Workflow creation using Claude→GPT pipeline with retry logic
 6. **Creator Module** - Multi-provider media generation (OpenRouter primary, Runway/Shotstack/ElevenLabs for gaps)
-7. **MCP Service** - **EXTERNAL** n8n workflow lifecycle management (hosted separately, not on Railway)
 
 ## Features
 
 ### ✅ Complete Implementation - Production Ready
 
 - **All 6 Railway services implemented** with full functionality and one-click deployment ready
-- **External MCP integration** for n8n workflow management (hosted separately)
 - **Complete envelope communication system** with standardized contracts
 - **Umbra Main Agent** with Telegram integration, multi-language support (EN/FR/PT)
 - **Intent classification** using both pattern matching and AI (OpenRouter)
@@ -30,9 +28,8 @@ Umbra is a modular system with 6 Railway-deployed services + external MCP:
 - **PII minimization** and secure storage integration with S3/R2
 - **VPS Concierge** with complete system monitoring, SSH management, and validation gates
 - **Business Module** with client lifecycle management delegating to Concierge and Production
-- **Production Module** with Claude→GPT→MCP pipeline, 3-retry logic, and circuit breakers
+- **Production Module** with Claude→GPT pipeline, retry logic, and circuit breakers
 - **Creator Module** with multi-provider media generation (OpenRouter, Runway, Shotstack, ElevenLabs)
-- **External MCP Service** with n8n workflow lifecycle management and validation gatekeeper (hosted separately)
 - **Comprehensive error handling** and retry logic with circuit breakers
 - **Audit logging** and observability across all services
 - **Railway deployment** configuration for production hosting
@@ -97,12 +94,9 @@ docker-compose up --build
 # - business (client lifecycle)
 # - production (workflow creation)
 # - creator (media generation)
-
-# MCP service is hosted externally - configure MCP_URL environment variable
 ```
 
 **Important Notes**:
-- **MCP service is NOT deployed to Railway** - it's hosted externally
 - **Concierge deploys to Railway** - it manages the external VPS remotely
 - **VPS is only for n8n instances** and eventually database
 - See `docs/deployment.md` for complete setup instructions

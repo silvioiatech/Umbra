@@ -17,10 +17,10 @@ router.get('/', (req: Request, res: Response) => {
       memory: process.memoryUsage(),
       version: '1.0.0',
       capabilities: [
-        'Claude → GPT → MCP pipeline',
+        'Claude → GPT pipeline',
         'Workflow architecture planning',
         'JSON n8n generation',
-        'MCP lifecycle management'
+        'Workflow validation'
       ]
     };
 
@@ -46,8 +46,7 @@ router.get('/ready', (req: Request, res: Response) => {
       service: 'production',
       timestamp: new Date().toISOString(),
       dependencies: {
-        openrouter: !!process.env.OPENROUTER_API_KEY,
-        mcp: !!process.env.MCP_URL
+        openrouter: !!process.env.OPENROUTER_API_KEY
       }
     };
 

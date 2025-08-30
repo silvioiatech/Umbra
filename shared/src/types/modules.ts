@@ -65,14 +65,7 @@ export interface CreatorPayload extends BasePayload {
   };
 }
 
-// MCP Service payloads
-export interface MCPPayload extends BasePayload {
-  action: 'validate' | 'dry_run' | 'import' | 'enable' | 'test_run' | 'promote' | 'export' | 'rollback';
-  workflowJson?: any;
-  workflowId?: string;
-  environment?: 'staging' | 'production';
-  version?: string;
-}
+
 
 // Union type for all module payloads
 export type ModulePayload = 
@@ -81,8 +74,7 @@ export type ModulePayload =
   | ConciergePayload
   | BusinessPayload
   | ProductionPayload
-  | CreatorPayload
-  | MCPPayload;
+  | CreatorPayload;
 
 // Module response data types
 export interface FinanceResult {
@@ -152,9 +144,3 @@ export interface CreatorResult {
   };
 }
 
-export interface MCPResult {
-  workflowId?: string;
-  version?: string;
-  status?: 'validated' | 'imported' | 'enabled' | 'promoted' | 'failed';
-  errors?: string[];
-}

@@ -1,7 +1,7 @@
 {
   "name": "@umbra/production-service",
   "version": "1.0.0",
-  "description": "Production Module - Claude→GPT→MCP workflow pipeline with 3-retry logic",
+  "description": "Production Module - Claude→GPT workflow pipeline with retry logic",
   "main": "dist/server.js",
   "scripts": {
     "build": "tsc",
