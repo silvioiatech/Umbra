@@ -1,36 +1,44 @@
-# Umbra Complete - Consolidated Requirements
-# All dependencies for the monolithic Python implementation
+# Umbra Bot - Phase 1 Dependencies
+# Minimal dependencies for the monolithic Python bot implementation
 
-# Core FastAPI and web framework
-fastapi>=0.104.0
-uvicorn[standard]>=0.24.0
-python-multipart>=0.0.6
-
-# HTTP client and async support
-httpx>=0.25.0
-aiofiles>=23.0.0
-
-# Data validation and parsing
+# Core Telegram Bot dependencies
+python-telegram-bot>=20.7
 pydantic>=2.5.0
+pydantic-settings>=2.0.0
 python-dotenv>=1.0.0
 
-# Image processing and OCR (optional but recommended)
-pytesseract>=0.3.10
-opencv-python>=4.8.0
-pillow>=10.1.0
-numpy>=1.24.0
+# System monitoring
+psutil>=5.9.5
 
-# PDF processing
-pypdf2>=3.0.1
-pdf2image>=1.16.0
-
-# SSH client for Concierge module
-paramiko>=3.3.0
-
-# Additional utilities
-requests>=2.31.0
-python-jose[cryptography]>=3.3.0
+# HTTP client for future API integrations
+aiohttp>=3.8.5
+httpx>=0.25.0
 
 # Development and testing
 pytest>=7.4.0
 pytest-asyncio>=0.21.0
+
+# Optional dependencies for future phases (commented out for Phase 1)
+# Uncomment as needed in later phases:
+
+# Image processing and OCR (Phase 2+)
+# pytesseract>=0.3.10
+# opencv-python>=4.8.0
+# pillow>=10.1.0
+# numpy>=1.24.0
+
+# PDF processing (Phase 2+)
+# pypdf2>=3.0.1
+# pdf2image>=1.16.0
+
+# SSH client for Concierge module (Phase 3+)
+# paramiko>=3.3.0
+
+# FastAPI for webhook mode (Phase 2+)
+# fastapi>=0.104.0
+# uvicorn[standard]>=0.24.0
+# python-multipart>=0.0.6
+
+# Additional utilities (Phase 2+)
+# requests>=2.31.0
+# python-jose[cryptography]>=3.3.0
