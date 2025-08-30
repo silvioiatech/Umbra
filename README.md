@@ -2,7 +2,90 @@
 
 A complete, all-in-one Telegram bot system implemented in Python with Finance, Business, Production, Creator, Concierge, and Monitoring modules.
 
-## 🚀 Quick Start
+> **🚀 NEW: Phase 1 Polling Bot Implementation Available!**
+> 
+> This repository now includes a new modular polling-based bot implementation in the `umbra/` package. 
+> See the [Phase 1 Quick Start](#phase-1-python-bot-quick-start) section below for the new implementation.
+> 
+> The original FastAPI webhook implementation (`umbra_complete.py`) remains available for production use.
+
+## 🚀 Phase 1 Python Bot - Quick Start
+
+### Running the New Polling-Based Bot
+
+The new `umbra/` package provides a polling-based bot implementation with modular architecture:
+
+```bash
+# Clone the repository
+git clone https://github.com/silvioiatech/Umbra.git
+cd Umbra
+
+# Install Phase 1 dependencies
+pip install -r requirements.txt
+
+# Configure required environment variables
+export TELEGRAM_BOT_TOKEN="your_bot_token_from_botfather"
+export ALLOWED_USER_IDS="123456789,987654321"  # Your Telegram user IDs
+
+# Run the new polling bot
+python -m umbra.bot
+```
+
+### Phase 1 Features
+
+- ✅ **Polling Mode**: No webhook setup required
+- ✅ **Modular Architecture**: Clean module loading system
+- ✅ **Structured Logging**: JSON-formatted logs with request tracing
+- ✅ **Feature Flags**: Runtime feature toggles
+- ✅ **Health Monitoring**: System status and metrics
+- ✅ **Finance Module**: Document processing structure (Phase 2: full OCR)
+- ✅ **Docker Support**: Production-ready containerization
+
+### Phase 1 Available Commands
+
+```
+/start          - Welcome and status
+/help           - Comprehensive help
+health          - System health check  
+status          - System information
+uptime          - Bot uptime
+finance help    - Finance module help
+```
+
+### Docker Deployment (Phase 1)
+
+```bash
+# Build the Phase 1 image
+docker build -t umbra-bot:phase1 .
+
+# Run with environment variables
+docker run -e TELEGRAM_BOT_TOKEN=your_token \
+           -e ALLOWED_USER_IDS=123456789 \
+           -v $(pwd)/data:/app/data \
+           umbra-bot:phase1
+```
+
+### Environment Configuration
+
+**Required:**
+```bash
+TELEGRAM_BOT_TOKEN=your_telegram_bot_token
+ALLOWED_USER_IDS=123456789,987654321
+```
+
+**Optional (with sensible defaults):**
+```bash
+LOG_LEVEL=INFO
+FEATURE_FINANCE_OCR=true
+FEATURE_METRICS_COLLECTION=true
+FINANCE_STORAGE_PATH=./finance_data
+```
+
+**Phase 1 Behavior:** Missing optional configuration produces warnings but doesn't stop the bot. Only missing required variables prevent startup.
+
+---
+
+## 🚀 Original FastAPI Implementation - Quick Start
 
 ### 1. Railway Deployment (Recommended)
 
