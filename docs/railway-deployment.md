@@ -151,6 +151,7 @@ Monitor these endpoints to ensure services are running properly.
 4. **API Key Mismatches**: Ensure inter-service API keys match
 5. **External MCP Service**: Verify MCP_URL points to correct external service
 6. **VPS Connectivity**: Ensure external MCP can reach n8n instances on VPS
+7. **Nixpacks Auto-Detection**: If Railway uses Nixpacks instead of Dockerfiles, the `railway.toml` file forces Railway to use the multi-service configuration
 
 ### One-Click Deployment Notes
 - Railway automatically deploys all 6 services from the root configuration
