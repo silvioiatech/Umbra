@@ -1,0 +1,113 @@
+{
+  "$schema": "https://railway.app/railway.schema.json",
+  "services": {
+    "umbra-python": {
+      "name": "umbra-python",
+      "build": {
+        "builder": "DOCKERFILE",
+        "buildContext": ".",
+        "dockerfilePath": "python_services/umbra/Dockerfile"
+      },
+      "deploy": {
+        "numReplicas": 1,
+        "sleepApplication": false,
+        "restartPolicyType": "ON_FAILURE",
+        "restartPolicyMaxRetries": 10
+      },
+      "variables": {
+        "PORT": "8080",
+        "PYTHON_ENV": "production"
+      }
+    },
+    "finance-python": {
+      "name": "finance-python",
+      "build": {
+        "builder": "DOCKERFILE", 
+        "buildContext": ".",
+        "dockerfilePath": "python_services/finance/Dockerfile"
+      },
+      "deploy": {
+        "numReplicas": 1,
+        "sleepApplication": false,
+        "restartPolicyType": "ON_FAILURE",
+        "restartPolicyMaxRetries": 10
+      },
+      "variables": {
+        "PORT": "8081",
+        "PYTHON_ENV": "production"
+      }
+    },
+    "concierge-python": {
+      "name": "concierge-python",
+      "build": {
+        "builder": "DOCKERFILE",
+        "buildContext": ".",
+        "dockerfilePath": "python_services/concierge/Dockerfile"
+      },
+      "deploy": {
+        "numReplicas": 1,
+        "sleepApplication": false,
+        "restartPolicyType": "ON_FAILURE",
+        "restartPolicyMaxRetries": 10
+      },
+      "variables": {
+        "PORT": "9090",
+        "PYTHON_ENV": "production"
+      }
+    },
+    "business-python": {
+      "name": "business-python",
+      "build": {
+        "builder": "DOCKERFILE",
+        "buildContext": ".",
+        "dockerfilePath": "python_services/business/Dockerfile"
+      },
+      "deploy": {
+        "numReplicas": 1,
+        "sleepApplication": false,
+        "restartPolicyType": "ON_FAILURE",
+        "restartPolicyMaxRetries": 10
+      },
+      "variables": {
+        "PORT": "8082",
+        "PYTHON_ENV": "production"
+      }
+    },
+    "production-python": {
+      "name": "production-python",
+      "build": {
+        "builder": "DOCKERFILE",
+        "buildContext": ".",
+        "dockerfilePath": "python_services/production/Dockerfile"
+      },
+      "deploy": {
+        "numReplicas": 1,
+        "sleepApplication": false,
+        "restartPolicyType": "ON_FAILURE",
+        "restartPolicyMaxRetries": 10
+      },
+      "variables": {
+        "PORT": "8083",
+        "PYTHON_ENV": "production"
+      }
+    },
+    "creator-python": {
+      "name": "creator-python",
+      "build": {
+        "builder": "DOCKERFILE",
+        "buildContext": ".",
+        "dockerfilePath": "python_services/creator/Dockerfile"
+      },
+      "deploy": {
+        "numReplicas": 1,
+        "sleepApplication": false,
+        "restartPolicyType": "ON_FAILURE",
+        "restartPolicyMaxRetries": 10
+      },
+      "variables": {
+        "PORT": "8084",
+        "PYTHON_ENV": "production"
+      }
+    }
+  }
+}
