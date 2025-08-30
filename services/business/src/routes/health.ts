@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import Logger from '@umbra/shared/src/utils/logger';
+import { Logger } from '@umbra/shared';
 
 const router = Router();
 const logger = new Logger('BusinessHealth');

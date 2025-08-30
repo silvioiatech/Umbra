@@ -5,7 +5,7 @@ import compression from 'compression';
 import { config } from 'dotenv';
 import { TelegramClient, OpenRouterClient } from '@umbra/shared';
 import { AuthMiddleware, ValidationMiddleware, AuditMiddleware } from '@umbra/shared';
-import Logger from '@umbra/shared/src/utils/logger';
+import { Logger } from '@umbra/shared';
 import { telegramRoutes } from './routes/telegram';
 import { apiRoutes } from './routes/api';
 import { healthRoutes } from './routes/health';

@@ -1,5 +1,5 @@
 import { VPSManager } from '../vps/vps-manager';
-import Logger from '@umbra/shared/src/utils/logger';
+import { Logger } from '@umbra/shared';
 
 export interface SystemMetrics {
   cpu: {

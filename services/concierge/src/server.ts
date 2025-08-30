@@ -4,7 +4,7 @@ import helmet from 'helmet';
 import compression from 'compression';
 import { config } from 'dotenv';
 import { AuthMiddleware, ValidationMiddleware, AuditMiddleware } from '@umbra/shared';
-import Logger from '@umbra/shared/src/utils/logger';
+import { Logger } from '@umbra/shared';
 import { apiRoutes } from './routes/api';
 import { healthRoutes } from './routes/health';
 import { VPSManager } from './vps/vps-manager';

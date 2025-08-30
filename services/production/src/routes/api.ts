@@ -1,8 +1,8 @@
 import { Router, Request, Response } from 'express';
-import { ModuleRequest, ModuleResult } from '@umbra/shared/src/types/envelopes';
-import { ProductionResult } from '@umbra/shared/src/types/modules';
-import Logger from '@umbra/shared/src/utils/logger';
-import { RetryUtils } from '@umbra/shared/src/utils/retry';
+import { ModuleRequest, ModuleResult } from '@umbra/shared';
+import { ProductionResult } from '@umbra/shared';
+import { Logger } from '@umbra/shared';
+import { RetryUtils } from '@umbra/shared';
 import axios from 'axios';
 
 const logger = new Logger('ProductionAPI');

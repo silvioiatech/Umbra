@@ -3,7 +3,7 @@ import { SupportedLanguage, Envelope, UmbraPayload } from '@umbra/shared';
 import { IntentClassifier } from '../routing/intent-classifier';
 import { ModuleRouter } from '../routing/module-router';
 import { TaskExecutor } from '../handlers/task-executor';
-import Logger from '@umbra/shared/src/utils/logger';
+import { Logger } from '@umbra/shared';
 import { v4 as uuidv4 } from 'uuid';
 
 interface TelegramUpdate {

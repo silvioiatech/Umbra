@@ -1,6 +1,6 @@
 import { OpenRouterClient } from '@umbra/shared';
 import { Envelope, UmbraPayload, ModuleResult, SupportedLanguage } from '@umbra/shared';
-import Logger from '@umbra/shared/src/utils/logger';
+import { Logger } from '@umbra/shared';
 
 interface IntentClassificationResult {
   intent: string;

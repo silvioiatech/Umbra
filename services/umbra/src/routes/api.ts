@@ -4,7 +4,7 @@ import { Envelope, UmbraPayload, ModuleResult } from '@umbra/shared';
 import { IntentClassifier } from '../routing/intent-classifier';
 import { ModuleRouter } from '../routing/module-router';
 import { TaskExecutor } from '../handlers/task-executor';
-import Logger from '@umbra/shared/src/utils/logger';
+import { Logger } from '@umbra/shared';
 
 export function apiRoutes(openRouterClient: OpenRouterClient): express.Router {
   const router = express.Router();

@@ -5,7 +5,7 @@ import compression from 'compression';
 import multer from 'multer';
 import { config } from 'dotenv';
 import { AuthMiddleware, ValidationMiddleware, AuditMiddleware } from '@umbra/shared';
-import Logger from '@umbra/shared/src/utils/logger';
+import { Logger } from '@umbra/shared';
 import { apiRoutes } from './routes/api';
 import { healthRoutes } from './routes/health';
 

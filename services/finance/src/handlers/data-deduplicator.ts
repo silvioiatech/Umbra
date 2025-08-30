@@ -1,5 +1,5 @@
 import { Envelope, FinancePayload, ModuleResult } from '@umbra/shared';
-import Logger from '@umbra/shared/src/utils/logger';
+import { Logger } from '@umbra/shared';
 import { CryptoUtils } from '@umbra/shared';
 
 interface TransactionRecord {

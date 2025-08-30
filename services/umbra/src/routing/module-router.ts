@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { Envelope, UmbraPayload, ModuleResult, SERVICES, API_ENDPOINTS } from '@umbra/shared';
 import { RetryUtils } from '@umbra/shared';
-import Logger from '@umbra/shared/src/utils/logger';
+import { Logger } from '@umbra/shared';
 
 export class ModuleRouter {
   private logger: Logger;

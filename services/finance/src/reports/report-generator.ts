@@ -1,6 +1,6 @@
 import { OpenRouterClient, StorageClient } from '@umbra/shared';
 import { Envelope, FinancePayload, ModuleResult } from '@umbra/shared';
-import Logger from '@umbra/shared/src/utils/logger';
+import { Logger } from '@umbra/shared';
 
 export class ReportGenerator {
   private logger: Logger;

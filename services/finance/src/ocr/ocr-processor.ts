@@ -4,7 +4,7 @@ import pdfParse from 'pdf-parse';
 import { OpenRouterClient } from '@umbra/shared';
 import { Envelope, FinancePayload, ModuleResult, FinanceResult } from '@umbra/shared';
 import { CryptoUtils } from '@umbra/shared';
-import Logger from '@umbra/shared/src/utils/logger';
+import { Logger } from '@umbra/shared';
 
 export class OCRProcessor {
   private logger: Logger;
