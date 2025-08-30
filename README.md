@@ -73,12 +73,45 @@ TELEGRAM_BOT_TOKEN=your_telegram_bot_token
 ALLOWED_USER_IDS=123456789,987654321
 ```
 
+### Environment Configuration
+
+**Required:**
+```bash
+TELEGRAM_BOT_TOKEN=your_telegram_bot_token
+ALLOWED_USER_IDS=123456789,987654321
+```
+
 **Optional (with sensible defaults):**
 ```bash
 LOG_LEVEL=INFO
 FEATURE_FINANCE_OCR=true
 FEATURE_METRICS_COLLECTION=true
 FINANCE_STORAGE_PATH=./finance_data
+
+# Health Check Configuration - Supports flexible duration formats
+HEALTH_CHECK_TIMEOUT=5          # Integer seconds
+HEALTH_CHECK_TIMEOUT=3s         # Seconds
+HEALTH_CHECK_TIMEOUT=1500ms     # Milliseconds (converted to seconds, min 1)
+HEALTH_CHECK_TIMEOUT=2min       # Minutes
+HEALTH_CHECK_TIMEOUT=1m         # Minutes (short form)
+```
+
+**Sample .env file:**
+```bash
+# Required
+TELEGRAM_BOT_TOKEN=123456789:ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefg
+ALLOWED_USER_IDS=123456789,987654321
+
+# Optional - Health Check
+HEALTH_CHECK_TIMEOUT=3s
+
+# Optional - Logging
+LOG_LEVEL=INFO
+FEATURE_DETAILED_LOGGING=false
+
+# Optional - Module Features
+FEATURE_FINANCE_OCR=true
+FEATURE_METRICS_COLLECTION=true
 ```
 
 **Phase 1 Behavior:** Missing optional configuration produces warnings but doesn't stop the bot. Only missing required variables prevent startup.
