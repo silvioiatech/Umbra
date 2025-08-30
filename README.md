@@ -1,315 +1,258 @@
-# Umbra Bot System - Complete Multi-Module Implementation
+# Umbra Complete - Monolithic Python Telegram Bot
 
-A comprehensive, production-ready Telegram bot ecosystem with 6 Railway-deployed services for workflow creation and media generation.
+A complete, all-in-one Telegram bot system implemented in Python with Finance, Business, Production, Creator, Concierge, and Monitoring modules.
 
-## Architecture Overview
+## 🚀 Quick Start
 
-Umbra is a modular system with 6 Railway-deployed services:
+### 1. Railway Deployment (Recommended)
 
-1. **Umbra (Main Agent)** - Entry point, NLU routing (EN/FR/PT), simple task execution
-2. **Finance Module** - OCR processing, financial document extraction, reporting with PII minimization
-3. **Concierge Module** - VPS management via Railway deployment (manages external VPS for n8n)
-4. **Business Module** - Client lifecycle management via Concierge delegation
-5. **Production Module** - Workflow creation using Claude→GPT pipeline with retry logic
-6. **Creator Module** - Multi-provider media generation (OpenRouter primary, Runway/Shotstack/ElevenLabs for gaps)
+[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/new/template/umbra-complete)
 
-## Features
+1. **Click the Railway button above** or deploy manually
+2. **Set environment variables** (see `.env.example`)
+3. **Configure your Telegram bot token**
+4. **Deploy automatically**
 
-### ✅ Complete Implementation - Production Ready
+### 2. Local Development
 
-- **All 6 Railway services implemented** with full functionality and one-click deployment ready
-- **Complete envelope communication system** with standardized contracts
-- **Umbra Main Agent** with Telegram integration, multi-language support (EN/FR/PT)
-- **Intent classification** using both pattern matching and AI (OpenRouter)
-- **Module routing** with fallback mechanisms and health checks
-- **Finance Module** with full OCR capabilities using Tesseract.js and OpenRouter vision
-- **Document processing** for invoices, receipts, statements with structured data extraction
-- **Financial categorization** and report generation (budget, VAT, tax)
-- **PII minimization** and secure storage integration with S3/R2
-- **VPS Concierge** with complete system monitoring, SSH management, and validation gates
-- **Business Module** with client lifecycle management delegating to Concierge and Production
-- **Production Module** with Claude→GPT pipeline, retry logic, and circuit breakers
-- **Creator Module** with multi-provider media generation (OpenRouter, Runway, Shotstack, ElevenLabs)
-- **Comprehensive error handling** and retry logic with circuit breakers
-- **Audit logging** and observability across all services
-- **Railway deployment** configuration for production hosting
-
-### 🏗️ Architecture Highlights
-
-- **Envelope Pattern**: Standardized inter-service communication
-- **Security Constraints**: Only Concierge has VPS access, validation gates for critical operations  
-- **Retry Strategies**: Different retry configs for functional/technical/network errors
-- **Circuit Breakers**: Automatic fallback on provider failures
-- **Cost Controls**: Per-request and per-module budget caps
-- **Multi-Environment**: Staging and production environment support
-
-## Quick Start
-
-### Local Development
-
-1. **Clone and install dependencies:**
 ```bash
-git clone <repository-url>
+# Clone the repository
+git clone https://github.com/silvioiatech/Umbra.git
 cd Umbra
-npm install
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Copy environment template
+cp .env.example .env
+
+# Edit .env with your configuration
+nano .env
+
+# Run the application
+python umbra_complete.py
 ```
 
-2. **Build shared components:**
-```bash
-# Build shared package first (required for all services)
-cd shared
-npm install
-npm run build:clean
-cd ..
+## 🤖 Features
 
-# Or use the automated build script
-./scripts/build.sh
-```
+### Core Modules
 
-3. **Configure environment variables:**
-```bash
-cp services/umbra/.env.example services/umbra/.env
-# Edit .env files with your API keys
-```
+- **💬 Telegram Bot** - Multi-language support (EN/FR/PT) with intelligent intent routing
+- **💰 Finance Module** - OCR document processing, expense categorization, financial reports
+- **🏢 Business Module** - Client lifecycle management, project tracking
+- **⚙️ Production Module** - AI-powered workflow creation and n8n integration  
+- **🎨 Creator Module** - Multi-provider media generation (images, videos, audio)
+- **📊 Concierge Module** - VPS management via SSH, container orchestration
+- **📈 Monitoring Module** - System health checks, performance monitoring
 
-4. **Start with Docker Compose:**
-```bash
-docker-compose up --build
-```
+### Key Capabilities
 
-### Railway Deployment
+- **🧠 AI-Powered** - OpenRouter integration for intelligent responses
+- **📄 OCR Processing** - Extract data from receipts, invoices, documents
+- **🌍 Multi-Language** - Automatic language detection (English, French, Portuguese)
+- **⚡ FastAPI Backend** - High-performance async web framework
+- **📱 Telegram Integration** - Webhook-based bot with rich interactions
+- **🔒 Secure** - Environment-based configuration, input validation
+- **📊 Comprehensive Logging** - Structured JSON logging with audit trails
 
-**One-Click Deployment**: Connect your repository to Railway and all 6 services will be automatically deployed.
-
-**Build Process**: The multi-stage Docker builds automatically handle the correct build order:
-1. Build `@umbra/shared` module first with all dependencies  
-2. Copy built shared module to each service
-3. Build individual services with shared module available
-
-```bash
-# Railway automatically deploys these services:
-# - umbra (main agent)
-# - finance (document processing)  
-# - concierge (VPS management)
-# - business (client lifecycle)
-# - production (workflow creation)
-# - creator (media generation)
-```
-
-**Important Notes**:
-- **Concierge deploys to Railway** - it manages the external VPS remotely
-- **VPS is only for n8n instances** and eventually database
-- See `docs/deployment.md` for complete setup instructions
-
-## Service Details
-
-### Umbra Main Agent (Port 8080)
-- **Telegram Bot Integration** with webhook support
-- **Multi-language support** (English, French, Portuguese)
-- **Intent Classification** using pattern matching + OpenRouter AI
-- **Module Routing** with health checks and fallbacks
-- **Simple Task Execution** (calculations, translations)
-- **Document Processing** (photos, PDFs via Finance module)
-
-### Finance Module (Port 8081)
-- **OCR Processing** with Tesseract.js for images and pdf-parse for PDFs
-- **AI-Enhanced Extraction** using OpenRouter vision models
-- **Financial Categorization** with confidence scoring
-- **Report Generation** (budget, VAT, tax reports)
-- **Data Deduplication** and anomaly detection
-- **PII Minimization** for GDPR compliance
-- **S3 Storage Integration** with lifecycle management
-
-### VPS Concierge (Port 9090)
-- **Exclusive VPS Access** - only service with SSH credentials
-- **Validation Gates** for critical operations (delete, restart, etc.)
-- **System Monitoring** with real-time metrics
-- **Container Management** via Docker commands
-- **Client Management Scripts** execution
-- **Comprehensive Audit Logging** for security compliance
-
-## API Documentation
-
-### Envelope Communication Pattern
-
-All inter-service communication uses standardized envelopes:
-
-```typescript
-interface Envelope<TPayload> {
-  reqId: string;            // uuid
-  userId: string;           // telegram id  
-  lang: 'EN' | 'FR' | 'PT';
-  timestamp: string;        // ISO
-  payload: TPayload;
-  meta?: {
-    costCapUsd?: number;
-    priority?: 'normal' | 'urgent';
-    retryCount?: number;
-  };
-}
-```
-
-### Service Endpoints
-
-- **Umbra**: `POST /api/v1/route` - Route requests to appropriate modules
-- **Finance**: `POST /api/v1/ocr` - Process documents with OCR
-- **Concierge**: `POST /api/v1/execute` - Execute VPS commands (validation required)
-- **All Services**: `GET /health` - Health check endpoint
-
-## Security & Compliance
-
-### Trust Boundaries
-- **Public**: Telegram Bot (bot token only)
-- **Orchestration**: Internal services with API key authentication
-- **VPS Access**: Concierge only (exclusive SSH access)
-- **External APIs**: OpenRouter, Runway, Shotstack, ElevenLabs
-- **Storage**: S3/R2 with signed URLs and lifecycle policies
-
-### Validation Gates
-Critical operations require validation tokens:
-- VPS command execution
-- Container deletion/restart
-- Client management operations
-- Production workflow deployment
-
-### Audit Logging
-- All requests logged with sanitized data
-- PII minimization for financial documents
-- Critical operation tracking
-- Performance monitoring
-
-## Environment Configuration
+## ⚙️ Configuration
 
 ### Required Environment Variables
 
-**Umbra Service:**
 ```bash
-BOT_TOKEN=your_telegram_bot_token
-OPENROUTER_API_KEY=your_openrouter_key
-STORAGE_ENDPOINT=your_s3_endpoint
-STORAGE_ACCESS_KEY=your_access_key
-STORAGE_SECRET_KEY=your_secret_key
-STORAGE_BUCKET=your_bucket_name
+# Telegram Configuration
+BOT_TOKEN=your_telegram_bot_token_here
+WEBHOOK_URL=https://your-app.railway.app/webhook/telegram
+
+# AI Configuration (Optional but recommended)
+OPENROUTER_API_KEY=your_openrouter_api_key_here
 ```
 
-**Finance Service:**
+### Optional Configuration
+
 ```bash
-OPENROUTER_API_KEY=your_openrouter_key
-STORAGE_ENDPOINT=your_s3_endpoint
+# Storage (S3/R2 Compatible)
+STORAGE_ENDPOINT=https://your-s3-endpoint.com
 STORAGE_ACCESS_KEY=your_access_key
 STORAGE_SECRET_KEY=your_secret_key
-STORAGE_BUCKET=your_bucket_name
-```
 
-**VPS Concierge:**
-```bash
+# VPS Management (Concierge Module)
 VPS_HOST=your_vps_ip
 VPS_USERNAME=your_ssh_user
 VPS_PRIVATE_KEY=your_ssh_private_key
-VPS_PORT=22
+
+# Media Generation (Creator Module)
+RUNWAY_API_KEY=your_runway_api_key
+ELEVENLABS_API_KEY=your_elevenlabs_api_key
 ```
 
-## Testing
+See `.env.example` for complete configuration options.
 
-### Running Tests
+## 🧪 Testing
+
+Run the comprehensive test suite:
+
 ```bash
-# Run all tests
-npm test
+# Start the application
+python umbra_complete.py
 
-# Run service-specific tests  
-cd services/umbra && npm test
-cd services/finance && npm test
+# In another terminal, run tests
+python test_umbra.py
+
+# Or test a remote instance
+python test_umbra.py https://your-app.railway.app
 ```
 
-### Manual Testing
+## 📱 Bot Commands
 
-1. **Telegram Bot Testing:**
-   - Send `/start` to get welcome message
-   - Upload a receipt/invoice for OCR processing
-   - Try different languages (EN/FR/PT)
+### General Commands
+- `help` or `/start` - Show welcome message and available features
+- `system status` - Check system health and uptime
 
-2. **API Testing:**
-   ```bash
-   # Health check
-   curl http://localhost:8080/health
-   
-   # Test finance OCR
-   curl -X POST http://localhost:8081/api/v1/ocr \
-     -H "Content-Type: application/json" \
-     -H "X-API-Key: your-api-key" \
-     -d '{"reqId":"test-123","userId":"123","lang":"EN","timestamp":"2024-01-01T00:00:00Z","payload":{"action":"ocr","documentUrl":"https://example.com/receipt.jpg"}}'
-   ```
+### Finance Module
+- Send receipts/invoices (images or PDFs) for automatic processing
+- `budget report` - Generate expense analysis
+- `finance help` - Show finance module capabilities
 
-## Architecture Decisions
+### Business Module  
+- `create client [name]` - Create new client with VPS resources
+- `list clients` - Show all active clients
+- `project status` - Check project progress
 
-### Why Envelope Pattern?
-- **Standardized Communication**: All services use the same message format
-- **Audit Trail**: Every request has a unique ID and user context
-- **Multi-language Support**: Built into every message
-- **Retry Logic**: Embedded retry count and error handling
-- **Cost Control**: Optional cost caps for expensive operations
+### Production Module
+- `create workflow [description]` - Generate automated workflow
+- `list workflows` - Show active workflows
+- `deploy workflow [name]` - Deploy to production
 
-### Why TypeScript?
-- **Type Safety**: Catch errors at compile time
-- **Better Tooling**: IDE support and refactoring
-- **Shared Types**: Consistent interfaces across services
-- **Documentation**: Self-documenting code with interfaces
+### Creator Module
+- `generate image [description]` - Create AI-generated images
+- `create video [description]` - Generate video content
+- `make audio [description]` - Produce audio/voiceovers
 
-### Why Microservices?
-- **Scalability**: Scale individual services independently
-- **Technology Diversity**: Use best tool for each job
-- **Fault Isolation**: One service failure doesn't bring down the system
-- **Team Autonomy**: Different teams can own different services
-- **Deployment Independence**: Deploy services separately
+## 🏗️ Architecture
 
-## Production Considerations
+### Monolithic Design
+- **Single Python file** (`umbra_complete.py`) with all modules
+- **FastAPI framework** for high-performance async web serving
+- **Modular functions** organized by business capability
+- **Shared utilities** for logging, AI, storage, and communication
 
-### Monitoring
-- Health checks on all services
-- Performance metrics and alerting
-- Error rate monitoring
-- Cost tracking for external APIs
+### Module Structure
+```
+Umbra Complete
+├── Telegram Handler (Intent Classification & Routing)
+├── Finance Module (OCR, Categorization, Reporting)
+├── Business Module (Client Management, Delegation)  
+├── Production Module (Workflow Generation, n8n)
+├── Creator Module (Media Generation, Multi-provider)
+├── Concierge Module (VPS Management, SSH Operations)
+└── Monitoring Module (Health Checks, System Status)
+```
 
-### Scaling
-- Horizontal scaling via Railway/Docker
-- Database connections pooling
-- CDN for media files
-- Caching for frequent requests
+### API Endpoints
+- `GET /` - Service information
+- `GET /health` - Health check
+- `POST /webhook/telegram` - Telegram webhook
+- `POST /api/finance/process` - Document processing
+- `POST /api/concierge/container` - Container management
+- `GET /api/monitoring/status` - System monitoring
 
-### Security
-- API key rotation
-- Secret management
-- Network isolation
-- Regular security audits
+## 🚀 Deployment
 
-## Contributing
+### Railway (Recommended)
+1. Connect your GitHub repository to Railway
+2. Set environment variables from `.env.example`
+3. Railway automatically detects and deploys Python apps
+4. Configure Telegram webhook to point to your Railway URL
 
-1. **Fork the repository**
-2. **Create feature branch**: `git checkout -b feature/new-feature`
-3. **Make changes** following the existing patterns
-4. **Add tests** for new functionality
-5. **Update documentation** if needed
-6. **Submit pull request**
+### Manual Deployment
+```bash
+# Install dependencies
+pip install -r requirements.txt
 
-### Development Guidelines
+# Set environment variables
+export BOT_TOKEN=your_token
+export WEBHOOK_URL=https://yourdomain.com/webhook/telegram
 
-- Follow existing code structure and naming conventions
-- Add comprehensive error handling with appropriate error types
-- Include audit logging for important operations
-- Write tests for critical functionality
-- Update environment examples for new configuration
+# Run with production server
+python umbra_complete.py
+```
 
-## License
+### Docker (Alternative)
+```bash
+# Build image
+docker build -t umbra-complete .
 
-MIT License - see LICENSE file for details.
+# Run container
+docker run -p 8080:8080 --env-file .env umbra-complete
+```
 
-## Support
+## 🔧 Development
 
-For support and questions:
-- Create an issue in the repository
-- Check the documentation in `/docs`
-- Review the API specifications in `/docs/api`
+### Project Structure
+```
+Umbra/
+├── umbra_complete.py    # Main application (all modules)
+├── requirements.txt     # Python dependencies
+├── test_umbra.py       # Comprehensive test suite
+├── .env.example        # Environment template
+├── Procfile           # Railway deployment config
+├── .gitignore         # Git ignore rules
+└── README.md          # This file
+```
+
+### Adding Features
+1. Extend the relevant module function in `umbra_complete.py`
+2. Add intent classification keywords if needed
+3. Update test cases in `test_umbra.py`
+4. Test locally before deploying
+
+### Contributing
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes with tests
+4. Submit a pull request
+
+## 📊 Monitoring & Logging
+
+### Health Monitoring
+- `/health` endpoint for uptime monitoring
+- Component status checks (Telegram, AI, Storage)
+- System resource monitoring
+
+### Logging
+- Structured JSON logging
+- Request/response audit trails
+- Error tracking with context
+- Performance metrics
+
+### Observability
+```bash
+# Check application logs
+python umbra_complete.py 2>&1 | jq
+
+# Monitor health endpoint
+curl https://your-app.railway.app/health | jq
+```
+
+## 🔐 Security
+
+- **Environment-based configuration** - No secrets in code
+- **Input validation** - Pydantic models for all data
+- **Error handling** - Graceful degradation
+- **Rate limiting** - Configurable request throttling
+- **Audit logging** - All operations tracked
+
+## 📄 License
+
+MIT License - see [LICENSE](LICENSE) file for details.
+
+## 🆘 Support
+
+- **Issues**: Create an issue in this repository
+- **Documentation**: Check the inline code documentation
+- **Community**: Telegram group (link in bot's /help command)
 
 ---
 
-**Built with ❤️ using Node.js, TypeScript, Express.js, and OpenRouter AI**
+**Built with ❤️ using Python, FastAPI, and OpenRouter AI**

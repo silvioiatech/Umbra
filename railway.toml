@@ -1,9 +1,0 @@
-# Force Railway to use the multi-service configuration from railway.json
-# This prevents Nixpacks auto-detection from overriding the Dockerfile builds
-
-[build]
-builder = "DOCKERFILE"
-
-# Ensure Railway reads the multi-service configuration from railway.json
-[deploy]
-multiService = true
