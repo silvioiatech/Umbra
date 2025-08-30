@@ -1,1 +1,1 @@
-web: cd services/umbra && npm start
+web: python umbra_complete.py
