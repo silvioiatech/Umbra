@@ -33,8 +33,8 @@ RUN npm install --include=dev
 # Copy shared source code first
 COPY shared/ ./shared/
 
-# Build shared package using npm script (avoids direct tsc issues)
-RUN cd shared && npm run build
+# Build shared package using clean build (ensures fresh compilation in Docker)
+RUN cd shared && npm run build:clean
 
 # Copy service source code
 COPY services/finance/src ./services/finance/src
@@ -70,7 +70,7 @@ COPY --from=base /app/shared/dist ./node_modules/@umbra/shared/dist
 COPY --from=base /app/shared/package.json ./node_modules/@umbra/shared/
 
 # Install only production dependencies
-RUN npm ci --only=production --no-audit --no-fund && \
+RUN npm install --omit=dev --no-audit --no-fund && \
     npm cache clean --force
 
 # Set proper ownership
