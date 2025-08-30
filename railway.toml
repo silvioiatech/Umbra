@@ -1,5 +1,5 @@
 [build]
-builder = "dockerfile"
+dockerfile = "services/umbra/Dockerfile"
 
 [deploy]
 numReplicas = 1
