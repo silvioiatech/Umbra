@@ -183,9 +183,18 @@ python umbra_complete.py
 # Build image
 docker build -t umbra-complete .
 
-# Run container
+# Run container with environment file
 docker run -p 8080:8080 --env-file .env umbra-complete
+
+# Or run with individual environment variables
+docker run -p 8080:8080 \
+  -e BOT_TOKEN=your_telegram_bot_token \
+  -e WEBHOOK_URL=https://your-domain.com/webhook/telegram \
+  -e OPENROUTER_API_KEY=your_openrouter_key \
+  umbra-complete
 ```
+
+The Docker image includes all necessary dependencies for OCR, image processing, and PDF handling. The application runs on port 8080 by default.
 
 ## 🔧 Development
 

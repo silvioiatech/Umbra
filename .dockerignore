@@ -1,0 +1,52 @@
+# .dockerignore for Umbra Complete
+# Exclude files that shouldn't be in the Docker image
+
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+env/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Environment files (should be mounted or set at runtime)
+.env
+.env.local
+.env.production
+
+# Application specific (will be created at runtime)
+uploads/
+storage/
+media/
+
+# Documentation
+README.md
+
+# Test files (optional - uncomment if you don't want tests in the image)
+# test_umbra.py
