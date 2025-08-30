@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
-import { ModuleRequest, ModuleResult } from '@umbra/shared/src/types/envelopes';
-import { CreatorResult } from '@umbra/shared/src/types/modules';
-import Logger from '@umbra/shared/src/utils/logger';
+import { ModuleRequest, ModuleResult } from '@umbra/shared';
+import { CreatorResult } from '@umbra/shared';
+import { Logger } from '@umbra/shared';
 
 const logger = new Logger('CreatorAPI');
 

@@ -1,5 +1,5 @@
 import { Client } from 'ssh2';
-import Logger from '@umbra/shared/src/utils/logger';
+import { Logger } from '@umbra/shared';
 
 export interface VPSConfig {
   host: string;

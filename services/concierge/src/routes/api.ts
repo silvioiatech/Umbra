@@ -1,10 +1,10 @@
 import { Router, Request, Response } from 'express';
 import { VPSManager } from '../vps/vps-manager';
 import { SystemMonitor } from '../monitoring/system-monitor';
-import { ModuleRequest, ModuleResult } from '@umbra/shared/src/types/envelopes';
-import { ConciergeResult } from '@umbra/shared/src/types/modules';
-import Logger from '@umbra/shared/src/utils/logger';
-import { RetryUtils } from '@umbra/shared/src/utils/retry';
+import { ModuleRequest, ModuleResult } from '@umbra/shared';
+import { ConciergeResult } from '@umbra/shared';
+import { Logger } from '@umbra/shared';
+import { RetryUtils } from '@umbra/shared';
 
 const logger = new Logger('ConciergeAPI');
 

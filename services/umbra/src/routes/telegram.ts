@@ -1,7 +1,7 @@
 import express from 'express';
 import { TelegramClient, OpenRouterClient } from '@umbra/shared';
 import { TelegramHandler } from '../telegram/telegram-handler';
-import Logger from '@umbra/shared/src/utils/logger';
+import { Logger } from '@umbra/shared';
 
 export function telegramRoutes(
   telegramClient: TelegramClient, 

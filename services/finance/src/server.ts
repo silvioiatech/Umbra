@@ -6,7 +6,7 @@ import multer from 'multer';
 import { config } from 'dotenv';
 import { OpenRouterClient, StorageClient } from '@umbra/shared';
 import { AuthMiddleware, ValidationMiddleware, AuditMiddleware } from '@umbra/shared';
-import Logger from '@umbra/shared/src/utils/logger';
+import { Logger } from '@umbra/shared';
 import { apiRoutes } from './routes/api';
 import { healthRoutes } from './routes/health';
 

@@ -4,7 +4,8 @@
   "description": "Comprehensive multi-module Telegram bot ecosystem",
   "main": "index.js",
   "scripts": {
-    "build": "npm run build --workspaces",
+    "build": "npm run build --workspace=shared && npm run build --workspaces --if-present",
+    "build:shared": "npm run build --workspace=shared",
     "dev": "npm run dev --workspaces",
     "test": "npm run test --workspaces",
     "lint": "eslint . --ext .ts --fix",

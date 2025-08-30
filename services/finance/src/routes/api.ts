@@ -7,7 +7,7 @@ import { DocumentExtractor } from '../extraction/document-extractor';
 import { FinancialCategorizer } from '../handlers/financial-categorizer';
 import { ReportGenerator } from '../reports/report-generator';
 import { DataDeduplicator } from '../handlers/data-deduplicator';
-import Logger from '@umbra/shared/src/utils/logger';
+import { Logger } from '@umbra/shared';
 
 export function apiRoutes(
   openRouterClient: OpenRouterClient, 
