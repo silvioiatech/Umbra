@@ -546,4 +546,18 @@ Instance ID: {instance_id}
             """)
 
             if not clients:
-                return """No clients yet. 
+                return """No clients yet. Add clients to get started with business management."""
+            
+            # Format client display
+            result = "**📊 Client Health Dashboard**\n\n"
+            for client in clients:
+                health_emoji = "🟢" if client[9] >= 8 else "🟡" if client[9] >= 6 else "🔴"
+                result += f"{health_emoji} **{client[1]}** (Score: {client[9]}/10)\n"
+                result += f"   📧 {client[2]}\n"
+                result += f"   💼 Active Projects: {client[11]}\n"
+                result += f"   📅 Since: {client[10][:10]}\n\n"
+            
+            return result
+            
+        except Exception as e:
+            return f"❌ Failed to get dashboard: {str(e)[:100]}" 
