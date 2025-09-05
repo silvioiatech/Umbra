@@ -3,8 +3,9 @@ Concierge MCP - Complete VPS Management
 Handles everything on your VPS like an MCP server
 """
 import subprocess
+import re
 from datetime import datetime
-from typing import Any
+from typing import Any, Dict, List, Optional
 
 import psutil
 
@@ -21,6 +22,14 @@ class ConciergeMCP(ModuleBase):
         self.db = db_manager
         self.ssh_available = hasattr(config, 'VPS_HOST') and config.VPS_HOST
         self.docker_available = hasattr(config, 'DOCKER_AVAILABLE') and config.DOCKER_AVAILABLE
+        
+        # Instance management configuration
+        self.client_port_range = self._parse_port_range(
+            getattr(config, 'CLIENT_PORT_RANGE', '20000-21000')
+        )
+        
+        # Initialize instance registry database
+        self._init_instance_database()
 
     async def initialize(self) -> bool:
         """Initialize the Concierge module."""
@@ -60,7 +69,10 @@ class ConciergeMCP(ModuleBase):
             "logs": self.get_recent_logs,
             "ports": self.check_ports,
             "backup": self.backup_system,
-            "processes": self.get_running_processes
+            "processes": self.get_running_processes,
+            "create instance": self.create_instance,
+            "list instances": self.list_instances,
+            "delete instance": self.delete_instance
         }
 
     async def process_envelope(self, envelope: InternalEnvelope) -> str | None:
@@ -88,6 +100,18 @@ class ConciergeMCP(ModuleBase):
             return await self.check_ports()
         elif action == "backup_system":
             return await self.backup_system()
+        elif action == "instances.create":
+            client = data.get("client", "")
+            name = data.get("name")
+            port = data.get("port")
+            return await self.create_instance(client, name, port)
+        elif action == "instances.list":
+            client = data.get("client")
+            return await self.list_instances(client)
+        elif action == "instances.delete":
+            client = data.get("client", "")
+            mode = data.get("mode", "keep")
+            return await self.delete_instance(client, mode)
         else:
             return None
 
@@ -406,3 +430,286 @@ Note: Implement actual backup logic based on your VPS setup."""
 
         except Exception as e:
             return f"❌ Process check failed: {str(e)[:100]}"
+
+    def _parse_port_range(self, port_range_str: str) -> tuple[int, int]:
+        """Parse port range string like '20000-21000'."""
+        try:
+            start, end = port_range_str.split('-')
+            return (int(start.strip()), int(end.strip()))
+        except (ValueError, AttributeError):
+            self.logger.warning(f"Invalid port range '{port_range_str}', using default 20000-21000")
+            return (20000, 21000)
+
+    def _init_instance_database(self):
+        """Initialize instance registry database tables."""
+        try:
+            self.db.execute("""
+                CREATE TABLE IF NOT EXISTS instance_registry (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    client_id TEXT UNIQUE NOT NULL,
+                    display_name TEXT NOT NULL,
+                    url TEXT NOT NULL,
+                    port INTEGER UNIQUE NOT NULL,
+                    status TEXT DEFAULT 'active',
+                    data_dir TEXT,
+                    reserved BOOLEAN DEFAULT FALSE,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            
+            # Index for faster lookups
+            self.db.execute("""
+                CREATE INDEX IF NOT EXISTS idx_instance_client_id 
+                ON instance_registry(client_id)
+            """)
+            
+            self.db.execute("""
+                CREATE INDEX IF NOT EXISTS idx_instance_port 
+                ON instance_registry(port)
+            """)
+            
+            self.logger.info("Instance registry database initialized")
+        except Exception as e:
+            self.logger.error(f"Failed to initialize instance database: {e}")
+
+    def _validate_client_slug(self, client: str) -> bool:
+        """Validate client slug format: [a-z0-9-]{1,32}."""
+        if not client or len(client) > 32:
+            return False
+        return bool(re.match(r'^[a-z0-9\-]+$', client))
+
+    def _validate_port(self, port: Optional[int]) -> bool:
+        """Validate port is within allowed range."""
+        if port is None:
+            return True
+        start, end = self.client_port_range
+        return start <= port <= end
+
+    def _allocate_port(self) -> Optional[int]:
+        """Allocate next available port from the range."""
+        start, end = self.client_port_range
+        
+        # Get all used ports (including reserved)
+        used_ports = set()
+        instances = self.db.query_all("SELECT port FROM instance_registry")
+        for instance in instances:
+            used_ports.add(instance['port'])
+        
+        # Find first available port
+        for port in range(start, end + 1):
+            if port not in used_ports:
+                return port
+        
+        return None  # No ports available
+
+    async def create_instance(self, client: str, name: Optional[str] = None, port: Optional[int] = None) -> dict:
+        """Create a new client n8n instance."""
+        try:
+            # Validate client slug
+            if not self._validate_client_slug(client):
+                return {
+                    "ok": False,
+                    "error": "Invalid client slug. Must be [a-z0-9-] max 32 chars."
+                }
+            
+            # Check if client already exists
+            existing = self.db.query_one(
+                "SELECT client_id FROM instance_registry WHERE client_id = ?", 
+                (client,)
+            )
+            if existing:
+                # Return existing instance (idempotent)
+                instance = self.db.query_one(
+                    "SELECT * FROM instance_registry WHERE client_id = ?", 
+                    (client,)
+                )
+                return {
+                    "ok": True,
+                    "client_id": instance['client_id'],
+                    "display_name": instance['display_name'],
+                    "url": instance['url'],
+                    "port": instance['port'],
+                    "status": instance['status'],
+                    "message": "Instance already exists"
+                }
+            
+            # Validate or allocate port
+            if port is not None:
+                if not self._validate_port(port):
+                    return {
+                        "ok": False,
+                        "error": f"Port {port} outside allowed range {self.client_port_range[0]}-{self.client_port_range[1]}"
+                    }
+                
+                # Check if port is already used
+                port_exists = self.db.query_one(
+                    "SELECT client_id FROM instance_registry WHERE port = ?", 
+                    (port,)
+                )
+                if port_exists:
+                    return {
+                        "ok": False,
+                        "error": f"Port {port} already in use by client '{port_exists['client_id']}'"
+                    }
+            else:
+                port = self._allocate_port()
+                if port is None:
+                    return {
+                        "ok": False,
+                        "error": "No available ports in range"
+                    }
+            
+            # Set defaults
+            display_name = name or f"n8n-{client}"
+            url = f"http://localhost:{port}"
+            data_dir = f"/data/n8n/{client}"
+            
+            # Create instance record
+            self.db.execute("""
+                INSERT INTO instance_registry 
+                (client_id, display_name, url, port, status, data_dir, reserved, created_at, updated_at)
+                VALUES (?, ?, ?, ?, 'active', ?, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            """, (client, display_name, url, port, data_dir))
+            
+            audit_id = f"inst_create_{client}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            
+            return {
+                "ok": True,
+                "client_id": client,
+                "display_name": display_name,
+                "url": url,
+                "port": port,
+                "status": "active",
+                "audit_id": audit_id,
+                "message": f"Instance created successfully on port {port}"
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Failed to create instance for {client}: {e}")
+            return {
+                "ok": False,
+                "error": f"Instance creation failed: {str(e)}"
+            }
+
+    async def list_instances(self, client: Optional[str] = None) -> dict:
+        """List instances or get single client details."""
+        try:
+            if client:
+                # Single client details
+                if not self._validate_client_slug(client):
+                    return {
+                        "ok": False,
+                        "error": "Invalid client slug"
+                    }
+                
+                instance = self.db.query_one(
+                    "SELECT * FROM instance_registry WHERE client_id = ?", 
+                    (client,)
+                )
+                
+                if not instance:
+                    return {
+                        "ok": False,
+                        "error": f"Client '{client}' not found"
+                    }
+                
+                return {
+                    "ok": True,
+                    "client_id": instance['client_id'],
+                    "display_name": instance['display_name'],
+                    "url": instance['url'],
+                    "port": instance['port'],
+                    "status": instance['status'],
+                    "data_dir": instance['data_dir'],
+                    "reserved": bool(instance['reserved'])
+                }
+            else:
+                # List all instances
+                instances = self.db.query_all(
+                    "SELECT client_id, display_name, url, port, status FROM instance_registry ORDER BY created_at DESC"
+                )
+                
+                return {
+                    "ok": True,
+                    "instances": [
+                        {
+                            "client_id": inst['client_id'],
+                            "display_name": inst['display_name'],
+                            "url": inst['url'],
+                            "port": inst['port'],
+                            "status": inst['status']
+                        }
+                        for inst in instances
+                    ]
+                }
+                
+        except Exception as e:
+            self.logger.error(f"Failed to list instances: {e}")
+            return {
+                "ok": False,
+                "error": f"Failed to list instances: {str(e)}"
+            }
+
+    async def delete_instance(self, client: str, mode: str = "keep") -> dict:
+        """Delete instance with keep-data or wipe-data mode."""
+        try:
+            # Validate inputs
+            if not self._validate_client_slug(client):
+                return {
+                    "ok": False,
+                    "error": "Invalid client slug"
+                }
+            
+            if mode not in ["keep", "wipe"]:
+                return {
+                    "ok": False,
+                    "error": "Mode must be 'keep' or 'wipe'"
+                }
+            
+            # Check if instance exists
+            instance = self.db.query_one(
+                "SELECT * FROM instance_registry WHERE client_id = ?", 
+                (client,)
+            )
+            
+            if not instance:
+                return {
+                    "ok": False,
+                    "error": f"Client '{client}' not found"
+                }
+            
+            audit_id = f"inst_delete_{client}_{mode}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            
+            if mode == "keep":
+                # Keep data, reserve port (archived)
+                self.db.execute("""
+                    UPDATE instance_registry 
+                    SET status = 'archived', reserved = TRUE, updated_at = CURRENT_TIMESTAMP
+                    WHERE client_id = ?
+                """, (client,))
+                
+                message = f"Instance archived, data preserved, port {instance['port']} reserved"
+                
+            elif mode == "wipe":
+                # Remove completely, free port
+                self.db.execute(
+                    "DELETE FROM instance_registry WHERE client_id = ?", 
+                    (client,)
+                )
+                
+                message = f"Instance completely removed, port {instance['port']} freed"
+            
+            return {
+                "ok": True,
+                "mode": mode,
+                "audit_id": audit_id,
+                "message": message
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Failed to delete instance {client}: {e}")
+            return {
+                "ok": False,
+                "error": f"Instance deletion failed: {str(e)}"
+            }
