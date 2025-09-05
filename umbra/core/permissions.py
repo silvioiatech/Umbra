@@ -1,13 +1,18 @@
 """Permission management for Umbra bot."""
 import logging
-from typing import List, Set
-from .config import config
+from typing import List, Set, Optional
+from .config import UmbraConfig
 
 class PermissionManager:
     """Manages user permissions and access control."""
     
-    def __init__(self):
+    def __init__(self, config: Optional[UmbraConfig] = None):
         self.logger = logging.getLogger(__name__)
+        
+        if config is None:
+            from .config import config as global_config
+            config = global_config
+        
         self.allowed_users: Set[int] = set(config.ALLOWED_USER_IDS)
         self.admin_users: Set[int] = set(config.ALLOWED_ADMIN_IDS)
         
