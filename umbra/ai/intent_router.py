@@ -49,56 +49,56 @@ class IntentRouter:
     def _init_deterministic_rules(self) -> List[RouteRule]:
         """Initialize deterministic routing rules."""
         return [
-            # Finance module rules
+            # Finance module rules - money patterns
             RouteRule(
-                patterns=[r'\$\d+', r'expense', r'spent', r'budget', r'money', r'cost', r'price'],
+                patterns=[r'\$\d+', r'spent.*\d+', r'expense'],
                 module_id='finance',
                 action='track_expense',
                 confidence=0.9,
                 param_extractors={'amount': r'\$?(\d+(?:\.\d{2})?)'}
             ),
             RouteRule(
-                patterns=[r'financial report', r'spending report', r'monthly report'],
+                patterns=[r'budget', r'financial.*report', r'spending.*report'],
                 module_id='finance',
                 action='monthly_report',
                 confidence=0.95
             ),
             RouteRule(
-                patterns=[r'account balance', r'balance', r'how much.*have'],
+                patterns=[r'account.*balance', r'balance', r'how.*much.*have'],
                 module_id='finance',
                 action='account_balance',
                 confidence=0.9
             ),
             
-            # System/Concierge module rules
+            # System/Concierge module rules - clear system patterns
             RouteRule(
-                patterns=[r'system status', r'server status', r'cpu', r'memory', r'disk'],
+                patterns=[r'system.*status', r'server.*status', r'check.*system'],
                 module_id='concierge',
                 action='system_status',
                 confidence=0.9
             ),
             RouteRule(
-                patterns=[r'docker', r'container', r'restart.*service'],
+                patterns=[r'docker', r'container'],
                 module_id='concierge',
                 action='docker_status',
                 confidence=0.85
             ),
             RouteRule(
-                patterns=[r'backup', r'backup system'],
+                patterns=[r'backup', r'backup.*system'],
                 module_id='concierge',
                 action='backup_system',
                 confidence=0.9
             ),
             
-            # Business module rules
+            # Business module rules  
             RouteRule(
-                patterns=[r'client', r'create.*instance', r'new.*vps', r'business'],
+                patterns=[r'client', r'create.*instance', r'client.*instance'],
                 module_id='business',
                 action='create_client_instance',
                 confidence=0.8
             ),
             RouteRule(
-                patterns=[r'invoice', r'billing', r'project.*status'],
+                patterns=[r'invoice', r'billing'],
                 module_id='business',
                 action='generate_invoice',
                 confidence=0.85
@@ -106,7 +106,7 @@ class IntentRouter:
             
             # Production/Automation rules
             RouteRule(
-                patterns=[r'workflow', r'automation', r'n8n', r'create.*workflow'],
+                patterns=[r'workflow', r'automation', r'create.*workflow'],
                 module_id='production',
                 action='create_workflow',
                 confidence=0.85
@@ -114,7 +114,7 @@ class IntentRouter:
             
             # Creator module rules
             RouteRule(
-                patterns=[r'generate.*image', r'create.*document', r'dall.?e', r'generate.*content'],
+                patterns=[r'generate.*image', r'create.*document', r'generate.*content'],
                 module_id='creator',
                 action='generate_content',
                 confidence=0.8
@@ -122,7 +122,7 @@ class IntentRouter:
             
             # Help and general rules
             RouteRule(
-                patterns=[r'help', r'what.*can.*do', r'capabilities', r'modules'],
+                patterns=[r'help', r'what.*can.*do', r'capabilities'],
                 module_id='help',
                 action='show_capabilities',
                 confidence=0.95
@@ -140,7 +140,7 @@ class IntentRouter:
         
         # First, try deterministic routing
         deterministic_intent = self._route_deterministic(message, user_context)
-        if deterministic_intent and deterministic_intent.confidence >= 0.7:
+        if deterministic_intent and deterministic_intent.confidence >= 0.45:  # Slightly lower threshold
             self.logger.info(f"🎯 Deterministic route: {deterministic_intent.module_id}.{deterministic_intent.action} (confidence: {deterministic_intent.confidence})")
             return deterministic_intent
         
@@ -167,6 +167,8 @@ class IntentRouter:
         best_match = None
         best_confidence = 0.0
         
+        self.logger.debug(f"🔍 Deterministic routing for: '{message_lower}'")
+        
         for rule in self.deterministic_rules:
             confidence = 0.0
             matched_patterns = 0
@@ -176,10 +178,22 @@ class IntentRouter:
             for pattern in rule.patterns:
                 if re.search(pattern, message_lower, re.IGNORECASE):
                     matched_patterns += 1
+                    self.logger.debug(f"   ✅ Pattern '{pattern}' matched")
+                else:
+                    self.logger.debug(f"   ❌ Pattern '{pattern}' no match")
             
             # Calculate confidence based on pattern matches
             if matched_patterns > 0:
-                confidence = rule.confidence * (matched_patterns / len(rule.patterns))
+                # Give more weight to any match, especially single strong patterns
+                if matched_patterns == len(rule.patterns):
+                    # All patterns matched - high confidence
+                    confidence = rule.confidence
+                elif matched_patterns >= len(rule.patterns) * 0.5:
+                    # At least half patterns matched - good confidence
+                    confidence = rule.confidence * 0.8
+                else:
+                    # Some patterns matched - moderate confidence  
+                    confidence = rule.confidence * 0.6
                 
                 # Extract parameters if specified
                 if rule.param_extractors:
@@ -197,8 +211,14 @@ class IntentRouter:
                         action=rule.action,
                         confidence=min(confidence, 1.0),
                         params=extracted_params,
-                        reasoning=f"Matched patterns: {rule.patterns[:matched_patterns]}"
+                        reasoning=f"Matched {matched_patterns}/{len(rule.patterns)} patterns: {[p for p in rule.patterns][:matched_patterns]}"
                     )
+                    self.logger.debug(f"   🎯 New best match: {rule.module_id}.{rule.action} (confidence: {confidence:.2f})")
+        
+        if best_match:
+            self.logger.debug(f"🎯 Final deterministic match: {best_match.module_id}.{best_match.action} (confidence: {best_match.confidence:.2f})")
+        else:
+            self.logger.debug("❌ No deterministic match found")
         
         return best_match
     
