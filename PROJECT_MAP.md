@@ -32,7 +32,11 @@ Umbra/
     │   ├── concierge_mcp.py   # VPS/System management module
     │   ├── finance_mcp.py     # Personal finance tracking module
     │   ├── finance_mcp_extensions.py # Enhanced finance features
-    │   ├── business_mcp.py    # Business/client management module
+    │   ├── business_mcp.py    # Thin Telegram → Concierge gateway for VPS instances
+    │   ├── business/           # Business module components
+    │   │   ├── __init__.py     # Business submodule exports
+    │   │   ├── concierge_client.py # Thin client for Concierge communication
+    │   │   └── formatters.py   # Telegram response formatters
     │   ├── production_mcp.py  # n8n workflow automation module
     │   └── creator_mcp.py     # Content creation module
     │
@@ -156,10 +160,10 @@ class ModuleMCP:
 
 | Module | Primary Domain | Key Actions | External Dependencies |
 |--------|---------------|-------------|----------------------|
-| `concierge_mcp.py` | VPS Management | `check_system`, `manage_docker`, `execute_ssh` | psutil, docker, subprocess |
+| `concierge_mcp.py` | VPS Management | `check_system`, `manage_docker`, `execute_ssh`, `instances.*` | psutil, docker, subprocess |
 | `finance_mcp.py` | Personal Finance | `track_expense`, `set_budget`, `generate_report` | - |
 | `finance_mcp_extensions.py` | Enhanced Finance | `ocr_receipt`, `investment_tracking` | boto3, yfinance |
-| `business_mcp.py` | Client Management | `create_instance`, `manage_client`, `generate_invoice` | concierge_mcp |
+| `business_mcp.py` | VPS Instance Gateway | `create_instance`, `list_instances`, `delete_instance` | concierge_mcp (gateway only) |
 | `production_mcp.py` | Automation | `create_workflow`, `deploy_automation` | n8n API |
 | `creator_mcp.py` | Content Creation | `generate_image`, `create_document` | OpenAI, Stability APIs |
 
@@ -185,7 +189,7 @@ sequenceDiagram
 
 | File | Purpose | Main Classes | Schema/Structure |
 |------|---------|-------------|-----------------|
-| `database.py` | SQLite operations | `DatabaseManager` | users, conversations, finance_*, business_* |
+| `database.py` | SQLite operations | `DatabaseManager` | users, conversations, finance_*, instance_registry |
 | `conversation.py` | Chat history | `ConversationManager` | messages table |
 | `json_store.py` | Key-value storage | `JSONStore` | Flat JSON files |
 
@@ -200,9 +204,8 @@ conversations (id, user_id, message, response, timestamp)
 finance_transactions (id, user_id, amount, category, description, date)
 finance_budgets (id, user_id, category, amount, period)
 
--- Business Module Tables
-business_clients (id, name, contact, created_at)
-business_projects (id, client_id, name, status, created_at)
+-- Instance Registry (Concierge Module)
+instance_registry (id, client_id, display_name, url, port, status, data_dir, reserved, created_at, updated_at)
 ```
 
 ## Data Flow Paths
@@ -231,7 +234,7 @@ Environment → config.py → Module Initialization → Runtime Configuration
 
 - **bot.py** → All modules (initialization)
 - **AI Agent** → All modules (execution)
-- **business_mcp** → concierge_mcp (VPS operations)
+- **business_mcp** → concierge_mcp (thin gateway, no direct VPS access)
 - **finance_mcp** → finance_mcp_extensions (enhanced features)
 
 ### Shared Resources
