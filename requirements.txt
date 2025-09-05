@@ -69,3 +69,10 @@ taxcalc==4.0.0  # US tax calculations (optional)
 # Enhanced Data Processing
 openpyxl==3.1.2  # Excel file support
 xlrd==2.0.1  # Legacy Excel support
+
+# Parquet support for R2 storage
+pyarrow==15.0.0
+
+# Testing dependencies
+pytest==8.0.0
+pytest-asyncio==0.23.5

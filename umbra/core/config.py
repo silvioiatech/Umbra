@@ -62,6 +62,17 @@ class UmbraConfig:
         self.RATE_LIMIT_ENABLED = self._parse_bool('RATE_LIMIT_ENABLED', default=True)
         self.RATE_LIMIT_REQUESTS_PER_MINUTE = int(os.getenv('RATE_LIMIT_REQUESTS_PER_MINUTE', '30'))
         
+        # Cloudflare R2 Storage Configuration
+        self.R2_ACCOUNT_ID = os.getenv('R2_ACCOUNT_ID')
+        self.R2_ACCESS_KEY_ID = os.getenv('R2_ACCESS_KEY_ID')
+        self.R2_SECRET_ACCESS_KEY = os.getenv('R2_SECRET_ACCESS_KEY')
+        self.R2_BUCKET = os.getenv('R2_BUCKET')
+        self.R2_ENDPOINT = os.getenv('R2_ENDPOINT')
+        
+        # Storage Strategy - R2 first, fallback to local/SQLite
+        self.STORAGE_BACKEND = os.getenv('STORAGE_BACKEND', 'r2' if self.R2_ACCOUNT_ID else 'sqlite')
+        self.feature_r2_storage = self._parse_bool('FEATURE_R2_STORAGE', default=bool(self.R2_ACCOUNT_ID))
+        
         # Only validate required variables in production
         if not os.getenv('UMBRA_SKIP_VALIDATION'):
             self._validate_required()
@@ -134,6 +145,9 @@ class UmbraConfig:
         
         if not self.N8N_API_URL:
             missing.append("Workflow Automation (set N8N_API_URL)")
+            
+        if not self.feature_r2_storage:
+            missing.append("R2 Storage (set R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET)")
         
         return missing
     
@@ -143,6 +157,8 @@ class UmbraConfig:
             "bot_token": "✅ Set" if self.TELEGRAM_BOT_TOKEN else "❌ Missing",
             "allowed_users": f"✅ {len(self.ALLOWED_USER_IDS)} users" if self.ALLOWED_USER_IDS else "❌ None",
             "ai_integration": "✅ Enabled" if self.feature_ai_integration else "⚠️ Disabled",
+            "r2_storage": "✅ Enabled" if self.feature_r2_storage else "⚠️ Disabled (using SQLite)",
+            "storage_backend": self.STORAGE_BACKEND,
             "optional_features": len(self.get_missing_optional_features()),
             "environment": self.ENVIRONMENT,
             "docker": "✅ Available" if self.DOCKER_AVAILABLE else "⚠️ Simulation"
