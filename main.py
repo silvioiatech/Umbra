@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
 """
-Umbra - Claude Desktop-style AI with MCP Modules
-Production entry point for Railway deployment
+Umbra MCP - Production entry point for Railway deployment
+F1: Core runtime with HTTP health server, config validation, and structured logging
 """
 import os
 import sys
 import asyncio
-import logging
 import signal
 from pathlib import Path
 
@@ -14,191 +13,339 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-# Set up logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[logging.StreamHandler()]
-)
-logger = logging.getLogger(__name__)
+# Import core components
+from umbra.core.config import config
+from umbra.core.logger import setup_logging, get_context_logger, set_request_context
+from umbra.http.health import create_health_app
+
+# Set up logging immediately
+setup_logging(config.LOG_LEVEL)
+logger = get_context_logger(__name__)
 
 class UmbraLauncher:
-    """Production launcher for Umbra."""
+    """Production launcher for Umbra MCP with Railway deployment support."""
     
     def __init__(self):
         self.bot = None
         self.health_server = None
-        self.port = int(os.environ.get('PORT', 8000))
+        self.health_app_runner = None
+        
+        # Set startup context for logging
+        set_request_context(
+            module="launcher",
+            action="startup"
+        )
         
     def setup_environment(self):
-        """Set up production environment."""
+        """Set up production environment with comprehensive logging."""
+        
+        # Set default environment variables
         os.environ.setdefault('ENVIRONMENT', 'production')
-        os.environ.setdefault('LOG_LEVEL', 'INFO')
+        os.environ.setdefault('LOG_LEVEL', config.LOG_LEVEL)
         os.environ.setdefault('PYTHONPATH', str(PROJECT_ROOT))
         
-        logger.info("🤖 Umbra - Claude Desktop-style AI with MCP Modules")
-        logger.info(f"🌍 Environment: {os.environ.get('ENVIRONMENT')}")
-        logger.info(f"🏥 Health port: {self.port}")
+        logger.info(
+            "Umbra MCP starting",
+            extra={
+                "version": "3.0.0",
+                "environment": config.ENVIRONMENT,
+                "port": config.PORT,
+                "locale_tz": config.LOCALE_TZ,
+                "privacy_mode": config.PRIVACY_MODE
+            }
+        )
         
-        if os.environ.get('OPENROUTER_API_KEY'):
-            logger.info("🧠 AI: Full Claude-style conversation enabled")
-        else:
-            logger.info("💭 AI: Pattern-based (add OPENROUTER_API_KEY for full AI)")
-    
-    def validate_config(self):
-        """Validate configuration."""
-        required = {
-            'TELEGRAM_BOT_TOKEN': '@BotFather',
-            'ALLOWED_USER_IDS': '@userinfobot',
-            'ALLOWED_ADMIN_IDS': 'Admin user IDs'
+        # Log feature status
+        features = {
+            "ai_integration": config.feature_ai_integration,
+            "r2_storage": config.feature_r2_storage,
+            "metrics_collection": config.feature_metrics_collection
         }
         
-        missing = []
-        for var, source in required.items():
-            if not os.environ.get(var):
-                missing.append(f"  {var} - Get from {source}")
+        logger.info("Feature flags configured", extra=features)
         
-        if missing:
-            logger.error("❌ Missing required variables:")
-            for msg in missing:
-                logger.error(msg)
+        # Log OpenRouter configuration
+        if config.OPENROUTER_API_KEY:
+            logger.info(
+                "AI capabilities enabled",
+                extra={
+                    "provider": "OpenRouter",
+                    "model": config.OPENROUTER_DEFAULT_MODEL,
+                    "base_url": config.OPENROUTER_BASE_URL
+                }
+            )
+        else:
+            logger.info("AI capabilities disabled (pattern-based mode)")
+        
+        # Log R2 storage configuration
+        if config.feature_r2_storage:
+            logger.info(
+                "R2 storage enabled",
+                extra={
+                    "bucket": config.R2_BUCKET,
+                    "endpoint": config.R2_ENDPOINT
+                }
+            )
+        else:
+            logger.info("R2 storage disabled (using local SQLite)")
+    
+    def validate_config(self) -> bool:
+        """Validate configuration with detailed error reporting."""
+        
+        logger.info("Validating configuration")
+        
+        try:
+            # This will raise ValueError if required config is missing
+            # The validation is done in UmbraConfig.__init__()
+            
+            # Additional validation checks
+            validation_results = {
+                "telegram_token": bool(config.TELEGRAM_BOT_TOKEN),
+                "allowed_users": len(config.ALLOWED_USER_IDS) > 0,
+                "admin_users": len(config.ALLOWED_ADMIN_IDS) > 0,
+                "port_valid": 1 <= config.PORT <= 65535,
+                "rate_limit_valid": config.RATE_LIMIT_PER_MIN > 0
+            }
+            
+            failed_checks = [check for check, passed in validation_results.items() if not passed]
+            
+            if failed_checks:
+                logger.error(
+                    "Configuration validation failed",
+                    extra={
+                        "failed_checks": failed_checks,
+                        "validation_results": validation_results
+                    }
+                )
+                return False
+            
+            # Log successful validation
+            logger.info(
+                "Configuration validated successfully",
+                extra={
+                    "allowed_users_count": len(config.ALLOWED_USER_IDS),
+                    "admin_users_count": len(config.ALLOWED_ADMIN_IDS),
+                    "port": config.PORT,
+                    "rate_limit_per_min": config.RATE_LIMIT_PER_MIN
+                }
+            )
+            
+            return True
+            
+        except ValueError as e:
+            logger.error(
+                "Configuration validation error",
+                extra={
+                    "error": str(e),
+                    "missing_vars": str(e).split(': ')[1] if ': ' in str(e) else "Unknown"
+                }
+            )
             return False
-        
-        logger.info("✅ Configuration validated")
-        return True
+        except Exception as e:
+            logger.error(
+                "Unexpected configuration error",
+                extra={
+                    "error": str(e),
+                    "error_type": type(e).__name__
+                }
+            )
+            return False
     
     async def start_health_server(self):
-        """Start health monitoring server."""
+        """Start HTTP health monitoring server."""
+        
         try:
+            logger.info("Starting health server", extra={"port": config.PORT})
+            
+            # Create health app
+            app = create_health_app()
+            
+            # Create runner and site
             from aiohttp import web
-            
-            async def health_handler(request):
-                return web.json_response({
-                    "status": "healthy",
-                    "service": "umbra-mcp",
-                    "version": "3.0.0",
-                    "architecture": "Claude Desktop + MCP",
-                    "modules": [
-                        "concierge",
-                        "finance", 
-                        "business",
-                        "production",
-                        "creator"
-                    ]
-                })
-            
-            async def root_handler(request):
-                return web.json_response({
-                    "name": "Umbra MCP",
-                    "description": "Claude Desktop-style AI with MCP modules",
-                    "endpoints": {
-                        "/": "Service info",
-                        "/health": "Health check"
-                    }
-                })
-            
-            app = web.Application()
-            app.router.add_get('/', root_handler)
-            app.router.add_get('/health', health_handler)
-            
             runner = web.AppRunner(app)
             await runner.setup()
-            site = web.TCPSite(runner, '0.0.0.0', self.port)
+            
+            site = web.TCPSite(runner, '0.0.0.0', config.PORT)
             await site.start()
             
-            self.health_server = runner
-            logger.info(f"✅ Health server on port {self.port}")
+            self.health_app_runner = runner
+            
+            logger.info(
+                "Health server started successfully",
+                extra={
+                    "port": config.PORT,
+                    "endpoints": ["/", "/health"],
+                    "bind_address": "0.0.0.0"
+                }
+            )
             
         except Exception as e:
-            logger.warning(f"Health server failed: {e}")
+            logger.error(
+                "Health server startup failed",
+                extra={
+                    "error": str(e),
+                    "error_type": type(e).__name__,
+                    "port": config.PORT
+                }
+            )
+            raise
     
     async def start_bot(self):
-        """Start the bot."""
+        """Start the Telegram bot."""
+        
         try:
-            from umbra.bot import UmbraAIAgent
-            from umbra.core.config import config
+            logger.info("Starting Telegram bot")
             
-            logger.info("🚀 Starting Umbra MCP...")
+            # Import bot here to avoid circular imports
+            from umbra.bot import UmbraAIAgent
             
             self.bot = UmbraAIAgent(config)
             bot_task = asyncio.create_task(self.bot.start())
             
-            logger.info("✅ Umbra MCP started successfully")
+            logger.info(
+                "Telegram bot started successfully",
+                extra={
+                    "modules_loaded": len(getattr(self.bot, 'modules', {})),
+                    "ai_enabled": bool(getattr(self.bot, 'ai_agent', None))
+                }
+            )
+            
             return bot_task
             
         except Exception as e:
-            logger.error(f"❌ Failed to start: {e}")
+            logger.error(
+                "Bot startup failed",
+                extra={
+                    "error": str(e),
+                    "error_type": type(e).__name__
+                }
+            )
             raise
     
     async def shutdown(self):
-        """Clean shutdown."""
-        logger.info("🛑 Shutting down...")
+        """Clean shutdown with comprehensive cleanup."""
         
+        logger.info("Shutdown initiated")
+        
+        shutdown_results = {}
+        
+        # Shutdown bot
         if self.bot:
             try:
                 await self.bot.shutdown()
+                shutdown_results["bot"] = "success"
+                logger.info("Bot shutdown completed")
             except Exception as e:
-                logger.warning(f"Bot shutdown warning: {e}")
+                shutdown_results["bot"] = f"error: {e}"
+                logger.warning("Bot shutdown error", extra={"error": str(e)})
         
-        if self.health_server:
+        # Shutdown health server
+        if self.health_app_runner:
             try:
-                await self.health_server.cleanup()
+                await self.health_app_runner.cleanup()
+                shutdown_results["health_server"] = "success"
+                logger.info("Health server shutdown completed")
             except Exception as e:
-                logger.warning(f"Health shutdown warning: {e}")
+                shutdown_results["health_server"] = f"error: {e}"
+                logger.warning("Health server shutdown error", extra={"error": str(e)})
         
-        logger.info("✅ Shutdown complete")
+        logger.info(
+            "Shutdown completed",
+            extra={"shutdown_results": shutdown_results}
+        )
     
     async def run(self):
-        """Main run method."""
+        """Main run method with proper error handling and graceful shutdown."""
+        
         try:
+            # Start health server first
             await self.start_health_server()
+            
+            # Start bot
             bot_task = await self.start_bot()
             
+            # Set up signal handlers for graceful shutdown
             def signal_handler(signum, frame):
-                logger.info(f"Signal {signum} received")
+                logger.info(
+                    "Shutdown signal received",
+                    extra={
+                        "signal": signum,
+                        "signal_name": signal.Signals(signum).name if hasattr(signal, 'Signals') else str(signum)
+                    }
+                )
                 bot_task.cancel()
             
+            # Register signal handlers (works on Unix systems)
             try:
                 signal.signal(signal.SIGTERM, signal_handler)
                 signal.signal(signal.SIGINT, signal_handler)
-            except ValueError:
-                pass
+                logger.info("Signal handlers registered")
+            except (ValueError, AttributeError):
+                # Windows or other platforms might not support all signals
+                logger.info("Signal handlers not available on this platform")
             
+            logger.info("All services started, entering main loop")
+            
+            # Wait for bot to complete or be cancelled
             try:
                 await bot_task
             except asyncio.CancelledError:
-                logger.info("Bot cancelled")
-                
+                logger.info("Bot task cancelled, initiating shutdown")
+            
         except Exception as e:
-            logger.error(f"Runtime error: {e}")
+            logger.error(
+                "Runtime error in main loop",
+                extra={
+                    "error": str(e),
+                    "error_type": type(e).__name__
+                }
+            )
             raise
         finally:
             await self.shutdown()
 
 def main():
-    """Main entry point."""
+    """Main entry point with comprehensive error handling."""
+    
     print("="*60)
     print("🤖 Umbra MCP v3.0.0")
+    print("🏭 Railway Production Build")
     print("💬 Claude Desktop-style AI with MCP Modules")
     print("🛠️ 5 specialized modules for complete control")
     print("="*60)
+    print()
     
     try:
         launcher = UmbraLauncher()
+        
+        # Setup environment
         launcher.setup_environment()
         
+        # Validate configuration
         if not launcher.validate_config():
-            logger.error("❌ Fix configuration and restart")
+            logger.error("Fix configuration and restart")
+            print("❌ Configuration validation failed. Check logs for details.")
+            print("💡 Ensure TELEGRAM_BOT_TOKEN, ALLOWED_USER_IDS, and ALLOWED_ADMIN_IDS are set")
             return 1
         
+        # Run the application
         asyncio.run(launcher.run())
         return 0
         
     except KeyboardInterrupt:
-        logger.info("👋 Stopped by user")
+        logger.info("Stopped by user (KeyboardInterrupt)")
+        print("👋 Stopped by user")
         return 0
     except Exception as e:
-        logger.error(f"❌ Fatal error: {e}")
+        logger.error(
+            "Fatal startup error",
+            extra={
+                "error": str(e),
+                "error_type": type(e).__name__
+            }
+        )
+        print(f"❌ Fatal error: {e}")
+        print("📋 Check logs for detailed error information")
         return 1
 
 if __name__ == "__main__":

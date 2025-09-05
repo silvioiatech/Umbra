@@ -1,13 +1,13 @@
 # Core Telegram Bot Framework
 python-telegram-bot==20.7
 
-# Async HTTP Client
+# Async HTTP Client & Server (Railway requirement)
 aiohttp==3.9.5
 
 # Database
 aiosqlite==0.19.0
 
-# Configuration Management
+# Configuration Management (Railway requirement)
 python-dotenv==1.0.0
 
 # System Monitoring
