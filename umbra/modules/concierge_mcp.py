@@ -2,6 +2,7 @@
 Concierge MCP - Complete VPS Management
 Handles everything on your VPS like an MCP server
 """
+import os
 import subprocess
 from datetime import datetime
 from typing import Any
@@ -54,13 +55,18 @@ class ConciergeMCP(ModuleBase):
         return {
             "system status": self.get_system_status,
             "docker status": self.get_docker_status,
+            "docker manage": self.manage_docker_container,
             "resource usage": self.get_resource_usage,
             "execute": self.execute_command,
             "service": self.manage_service,
             "logs": self.get_recent_logs,
             "ports": self.check_ports,
             "backup": self.backup_system,
-            "processes": self.get_running_processes
+            "processes": self.get_running_processes,
+            "upload file": self.upload_file,
+            "download file": self.download_file,
+            "system updates": self.check_system_updates,
+            "install updates": self.install_updates
         }
 
     async def process_envelope(self, envelope: InternalEnvelope) -> str | None:
@@ -72,6 +78,10 @@ class ConciergeMCP(ModuleBase):
             return await self.get_system_status()
         elif action == "docker_status":
             return await self.get_docker_status()
+        elif action == "docker_manage":
+            container = data.get("container", "")
+            action_type = data.get("action_type", "status")
+            return await self.manage_docker_container(container, action_type)
         elif action == "resource_usage":
             return await self.get_resource_usage()
         elif action == "execute_command":
@@ -88,6 +98,18 @@ class ConciergeMCP(ModuleBase):
             return await self.check_ports()
         elif action == "backup_system":
             return await self.backup_system()
+        elif action == "upload_file":
+            file_path = data.get("file_path", "")
+            content = data.get("content", "")
+            return await self.upload_file(file_path, content)
+        elif action == "download_file":
+            file_path = data.get("file_path", "")
+            return await self.download_file(file_path)
+        elif action == "check_updates":
+            return await self.check_system_updates()
+        elif action == "install_updates":
+            packages = data.get("packages", [])
+            return await self.install_updates(packages)
         else:
             return None
 
@@ -248,15 +270,36 @@ class ConciergeMCP(ModuleBase):
             return f"❌ Resource check failed: {str(e)[:100]}"
 
     async def execute_command(self, command: str) -> str:
-        """Execute shell command on VPS."""
+        """Execute shell command on VPS with enhanced risk classification."""
         try:
-            # Safety check
-            dangerous = ['rm -rf', 'format', 'mkfs', 'dd if=']
-            if any(d in command.lower() for d in dangerous):
-                return "❌ Command blocked for safety. Use admin confirmation for dangerous operations."
+            # Enhanced risk classification
+            high_risk = [
+                'rm -rf', 'format', 'mkfs', 'dd if=', 'fdisk', 'parted',
+                'shred', 'wipefs', 'mkswap', 'swapon', 'swapoff'
+            ]
+            
+            medium_risk = [
+                'rm ', 'mv ', 'chmod 777', 'chmod -R', 'chown -R',
+                'kill -9', 'killall', 'pkill', 'systemctl stop',
+                'service stop', 'mount', 'umount', 'iptables'
+            ]
+            
+            # Check for high-risk commands
+            if any(danger in command.lower() for danger in high_risk):
+                return "❌ HIGH RISK: Command blocked for safety. Requires admin confirmation with --force flag."
+            
+            # Check for medium-risk commands
+            risk_level = "LOW"
+            if any(risk in command.lower() for risk in medium_risk):
+                risk_level = "MEDIUM"
+                if not command.endswith(' --confirmed'):
+                    return f"⚠️ MEDIUM RISK: Add '--confirmed' flag to execute: {command} --confirmed"
+
+            # Clean the command of confirmation flags
+            clean_command = command.replace(' --confirmed', '').strip()
 
             result = subprocess.run(
-                command,
+                clean_command,
                 check=False, shell=True,
                 capture_output=True,
                 text=True,
@@ -264,11 +307,13 @@ class ConciergeMCP(ModuleBase):
             )
 
             output = result.stdout or result.stderr
+            status = "✅ Success" if result.returncode == 0 else "❌ Failed"
+            
             return f"""**⚡ Command Executed**
 
-```bash
-$ {command}
-```
+Risk Level: {risk_level}
+Command: `{clean_command}`
+Status: {status}
 
 **Output:**
 ```
@@ -406,3 +451,232 @@ Note: Implement actual backup logic based on your VPS setup."""
 
         except Exception as e:
             return f"❌ Process check failed: {str(e)[:100]}"
+
+    async def manage_docker_container(self, container: str, action: str) -> str:
+        """Manage Docker containers with enhanced operations."""
+        try:
+            if not self.docker_available:
+                return "❌ Docker not available on this system"
+
+            valid_actions = ['start', 'stop', 'restart', 'status', 'logs', 'remove']
+            if action not in valid_actions:
+                return f"❌ Invalid action. Use: {', '.join(valid_actions)}"
+
+            if action == 'status':
+                result = subprocess.run(
+                    ['docker', 'inspect', container, '--format', 
+                     '{{.State.Status}} - {{.Config.Image}} - {{.NetworkSettings.IPAddress}}'],
+                    check=False, capture_output=True, text=True, timeout=10
+                )
+            elif action == 'logs':
+                result = subprocess.run(
+                    ['docker', 'logs', '--tail', '20', container],
+                    check=False, capture_output=True, text=True, timeout=10
+                )
+            else:
+                result = subprocess.run(
+                    ['docker', action, container],
+                    check=False, capture_output=True, text=True, timeout=30
+                )
+
+            status = '✅ Success' if result.returncode == 0 else '❌ Failed'
+            output = result.stdout or result.stderr
+
+            return f"""**🐳 Docker Container Management**
+
+Container: {container}
+Action: {action}
+Result: {status}
+
+```
+{output[:500]}
+```"""
+
+        except Exception as e:
+            return f"❌ Docker management failed: {str(e)[:100]}"
+
+    async def upload_file(self, file_path: str, content: str) -> str:
+        """Securely upload file to server with safety checks."""
+        try:
+            import os
+            import base64
+            from pathlib import Path
+
+            # Safety checks
+            if not file_path or '..' in file_path:
+                return "❌ Invalid file path for security reasons"
+            
+            # Restrict to safe directories
+            safe_dirs = ['/tmp', '/home', '/var/www', '/opt']
+            if not any(file_path.startswith(safe_dir) for safe_dir in safe_dirs):
+                return "❌ File path not in allowed directories"
+
+            # Decode base64 content if provided
+            try:
+                file_content = base64.b64decode(content).decode('utf-8')
+            except:
+                file_content = content
+
+            # Create directory if it doesn't exist
+            file_obj = Path(file_path)
+            file_obj.parent.mkdir(parents=True, exist_ok=True)
+
+            # Write file
+            with open(file_path, 'w', encoding='utf-8') as f:
+                f.write(file_content)
+
+            file_size = os.path.getsize(file_path)
+            
+            return f"""**📁 File Upload Complete**
+
+Path: {file_path}
+Size: {file_size} bytes
+Status: ✅ Success
+
+File uploaded securely to server."""
+
+        except Exception as e:
+            return f"❌ File upload failed: {str(e)[:100]}"
+
+    async def download_file(self, file_path: str) -> str:
+        """Securely download file from server with safety checks."""
+        try:
+            import os
+            import base64
+            from pathlib import Path
+
+            # Safety checks
+            if not file_path or '..' in file_path:
+                return "❌ Invalid file path for security reasons"
+
+            if not os.path.exists(file_path):
+                return "❌ File not found"
+
+            # Check file size (limit to 1MB for safety)
+            file_size = os.path.getsize(file_path)
+            if file_size > 1024 * 1024:  # 1MB limit
+                return f"❌ File too large ({file_size} bytes). Max 1MB allowed."
+
+            # Read and encode file
+            with open(file_path, 'rb') as f:
+                file_content = f.read()
+
+            # Base64 encode for safe transmission
+            encoded_content = base64.b64encode(file_content).decode('utf-8')
+
+            return f"""**📁 File Download Ready**
+
+Path: {file_path}
+Size: {file_size} bytes
+Status: ✅ Success
+
+Base64 Content (first 200 chars):
+```
+{encoded_content[:200]}...
+```
+
+Use base64 decode to get original file content."""
+
+        except Exception as e:
+            return f"❌ File download failed: {str(e)[:100]}"
+
+    async def check_system_updates(self) -> str:
+        """Check for available system updates."""
+        try:
+            # Check package manager type
+            if os.path.exists('/usr/bin/apt'):
+                # Debian/Ubuntu
+                update_cmd = 'apt list --upgradable 2>/dev/null | head -20'
+                check_cmd = 'apt update >/dev/null 2>&1 && apt list --upgradable 2>/dev/null | wc -l'
+            elif os.path.exists('/usr/bin/yum'):
+                # RHEL/CentOS
+                update_cmd = 'yum check-update 2>/dev/null | head -20'
+                check_cmd = 'yum check-update 2>/dev/null | grep -c "^[a-zA-Z]"'
+            elif os.path.exists('/usr/bin/dnf'):
+                # Fedora
+                update_cmd = 'dnf check-update 2>/dev/null | head -20'
+                check_cmd = 'dnf check-update 2>/dev/null | grep -c "^[a-zA-Z]"'
+            else:
+                return "❌ Unsupported package manager"
+
+            # Get update count
+            count_result = subprocess.run(
+                check_cmd, shell=True, capture_output=True, text=True, timeout=30
+            )
+            
+            # Get update list
+            list_result = subprocess.run(
+                update_cmd, shell=True, capture_output=True, text=True, timeout=30
+            )
+
+            try:
+                update_count = int(count_result.stdout.strip()) if count_result.stdout.strip().isdigit() else 0
+            except:
+                update_count = 0
+
+            status = "🟢 Up to date" if update_count == 0 else f"🟡 {update_count} updates available"
+
+            return f"""**🔄 System Updates Check**
+
+Status: {status}
+
+**Available Updates:**
+```
+{list_result.stdout[:500] if list_result.stdout else 'No updates available'}
+```
+
+Run 'install updates' to apply available updates."""
+
+        except Exception as e:
+            return f"❌ Update check failed: {str(e)[:100]}"
+
+    async def install_updates(self, packages: list = None) -> str:
+        """Install system updates with safety controls."""
+        try:
+            # Safety check - require admin confirmation for system updates
+            if not self.config.is_user_admin(0):  # This would need proper user context
+                return "❌ System updates require admin confirmation. Use admin override."
+
+            # Determine package manager and command
+            if os.path.exists('/usr/bin/apt'):
+                if packages:
+                    cmd = f"apt update && apt install -y {' '.join(packages)}"
+                else:
+                    cmd = "apt update && apt upgrade -y"
+            elif os.path.exists('/usr/bin/yum'):
+                if packages:
+                    cmd = f"yum update -y {' '.join(packages)}"
+                else:
+                    cmd = "yum update -y"
+            elif os.path.exists('/usr/bin/dnf'):
+                if packages:
+                    cmd = f"dnf update -y {' '.join(packages)}"
+                else:
+                    cmd = "dnf update -y"
+            else:
+                return "❌ Unsupported package manager"
+
+            # Execute update (with extended timeout)
+            result = subprocess.run(
+                cmd, shell=True, capture_output=True, text=True, timeout=300
+            )
+
+            status = '✅ Success' if result.returncode == 0 else '❌ Failed'
+            output = result.stdout[-500:] if result.stdout else result.stderr[-500:]
+
+            return f"""**🔄 System Updates**
+
+Target: {'Specific packages' if packages else 'All available updates'}
+Status: {status}
+
+**Output (last 500 chars):**
+```
+{output}
+```
+
+System update completed. Consider rebooting if kernel was updated."""
+
+        except subprocess.TimeoutExpired:
+            return "❌ Update process timed out after 5 minutes"
+        except Exception as e:
+            return f"❌ Update installation failed: {str(e)[:100]}"

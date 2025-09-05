@@ -72,15 +72,16 @@ class UmbraAIAgent:
                 'name': 'VPS Manager',
                 'capabilities': [
                     'System monitoring (CPU, RAM, disk, network)',
-                    'Docker container management',
+                    'Docker container management (start/stop/restart/logs)',
                     'Service control (start/stop/restart)',
-                    'Package management',
+                    'Package management and system updates',
                     'Log analysis',
                     'Process management',
                     'Firewall configuration',
                     'Backup operations',
-                    'SSH command execution',
-                    'File system operations'
+                    'Risk-classified command execution',
+                    'Secure file transfers (upload/download)',
+                    'Semi-automated patching'
                 ]
             },
             'finance': {
