@@ -17,6 +17,10 @@ import sys
 PROJECT_ROOT = Path(__file__).parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
+# Import utilities directly without triggering config validation
+import os
+os.environ.setdefault('UMBRA_SKIP_VALIDATION', '1')
+
 from umbra.utils.rate_limiter import RateLimiter
 from umbra.core.logger import setup_logging, get_logger
 
