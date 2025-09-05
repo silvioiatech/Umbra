@@ -1,0 +1,298 @@
+name: Seed Feature Branches
+
+on:
+  push:
+    branches:
+      - 'feature/**'
+      - 'feat/**'
+      - 'enhancement/**'
+      - 'dev/**'
+  create:
+    branches:
+      - 'feature/**'
+      - 'feat/**'
+      - 'enhancement/**'
+      - 'dev/**'
+  workflow_dispatch:
+    inputs:
+      branch_name:
+        description: 'Branch name to seed (optional - defaults to current branch)'
+        required: false
+        type: string
+      force_seed:
+        description: 'Force re-seeding even if already seeded'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  seed-branch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.branch_name || github.ref }}
+          fetch-depth: 0
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Detect branch type and seeding status
+        id: branch-info
+        run: |
+          BRANCH_NAME="${{ github.event.inputs.branch_name || github.ref_name }}"
+          echo "branch_name=$BRANCH_NAME" >> $GITHUB_OUTPUT
+          
+          # Check if this is a feature branch
+          if [[ "$BRANCH_NAME" =~ ^(feature|feat|enhancement|dev)/ ]]; then
+            echo "is_feature_branch=true" >> $GITHUB_OUTPUT
+            echo "🌟 Detected feature branch: $BRANCH_NAME"
+          else
+            echo "is_feature_branch=false" >> $GITHUB_OUTPUT
+            echo "ℹ️ Not a feature branch: $BRANCH_NAME"
+          fi
+          
+          # Check if branch has already been seeded
+          if [ -f ".github/.seeded" ] && [ "${{ github.event.inputs.force_seed }}" != "true" ]; then
+            echo "already_seeded=true" >> $GITHUB_OUTPUT
+            echo "✅ Branch already seeded"
+          else
+            echo "already_seeded=false" >> $GITHUB_OUTPUT
+            echo "🌱 Branch needs seeding"
+          fi
+
+      - name: Install dependencies
+        if: steps.branch-info.outputs.is_feature_branch == 'true' && steps.branch-info.outputs.already_seeded == 'false'
+        run: |
+          echo "📦 Installing Python dependencies..."
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          echo "✅ Dependencies installed successfully"
+
+      - name: Run seeding validation
+        if: steps.branch-info.outputs.is_feature_branch == 'true' && steps.branch-info.outputs.already_seeded == 'false'
+        run: |
+          echo "🔍 Running UMBRA project validation..."
+          python scripts/validate_branch_setup.py
+          echo "✅ Branch validation completed"
+
+      - name: Create development environment template
+        if: steps.branch-info.outputs.is_feature_branch == 'true' && steps.branch-info.outputs.already_seeded == 'false'
+        run: |
+          echo "📝 Creating development environment template..."
+          
+          # Create .env.dev template for feature branch development
+          if [ ! -f ".env.dev" ]; then
+            cat > .env.dev << 'EOF'
+          # UMBRA Feature Branch Development Environment
+          # Copy this to .env and configure with your actual values
+          
+          # Required - Get from @BotFather
+          TELEGRAM_BOT_TOKEN=your_bot_token_here
+          
+          # Required - Get from @userinfobot (comma-separated)
+          ALLOWED_USER_IDS=123456789
+          
+          # Required - Admin user IDs
+          ALLOWED_ADMIN_IDS=123456789
+          
+          # Optional - AI capabilities (get from openrouter.ai)
+          OPENROUTER_API_KEY=
+          
+          # Optional - System configuration
+          DATABASE_PATH=data/umbra_dev.db
+          LOG_LEVEL=DEBUG
+          ENVIRONMENT=development
+          PORT=8000
+          
+          # Feature branch specific settings
+          FEATURE_DEVELOPMENT_MODE=true
+          FEATURE_BRANCH_NAME=${{ steps.branch-info.outputs.branch_name }}
+          
+          # Optional - Module configuration
+          N8N_API_URL=
+          N8N_API_KEY=
+          EOF
+            echo "✅ Created .env.dev template"
+          fi
+          
+          # Create development data directory structure
+          mkdir -p data/dev
+          mkdir -p logs/dev
+          mkdir -p temp/dev
+          
+          echo "✅ Development environment template created"
+
+      - name: Initialize development database structure
+        if: steps.branch-info.outputs.is_feature_branch == 'true' && steps.branch-info.outputs.already_seeded == 'false'
+        run: |
+          echo "🗄️ Preparing development database structure..."
+          python scripts/init_dev_database.py
+          echo "✅ Development database structure prepared"
+
+      - name: Create branch-specific documentation
+        if: steps.branch-info.outputs.is_feature_branch == 'true' && steps.branch-info.outputs.already_seeded == 'false'
+        run: |
+          echo "📚 Creating branch-specific documentation..."
+          
+          # Create DEVELOPMENT.md for this feature branch
+          cat > DEVELOPMENT.md << EOF
+          # Development Guide for Feature Branch: ${{ steps.branch-info.outputs.branch_name }}
+          
+          This branch has been automatically seeded with development tools and configuration.
+          
+          ## Quick Start
+          
+          1. **Set up environment:**
+             \`\`\`bash
+             cp .env.dev .env
+             # Edit .env with your actual values
+             \`\`\`
+          
+          2. **Run validation:**
+             \`\`\`bash
+             python scripts/validate_branch_setup.py
+             \`\`\`
+          
+          3. **Start development:**
+             \`\`\`bash
+             python main.py
+             \`\`\`
+          
+          ## Development Database
+          
+          - Location: \`data/umbra_dev.db\`
+          - Automatically created on first run
+          - Separate from production database
+          
+          ## Logs
+          
+          - Development logs: \`logs/dev/\`
+          - Log level set to DEBUG for detailed output
+          
+          ## Branch Information
+          
+          - **Branch:** ${{ steps.branch-info.outputs.branch_name }}
+          - **Seeded:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          - **Python Version:** $(python --version)
+          - **Environment:** Development
+          
+          ## Available Scripts
+          
+          - \`scripts/validate_branch_setup.py\` - Validate project setup
+          - \`scripts/init_dev_database.py\` - Initialize development database
+          - \`scripts/test_modules.py\` - Test MCP modules
+          
+          ## Module Status
+          
+          This branch includes all 5 MCP modules:
+          - 🏠 **Concierge MCP** - VPS/System management
+          - 💰 **Finance MCP** - Personal finance tracking  
+          - 🏢 **Business MCP** - Business/client management
+          - 🚀 **Production MCP** - n8n workflow automation
+          - 🎨 **Creator MCP** - Content creation
+          
+          ## Support
+          
+          - Check ACTION_PLAN.md for complete setup instructions
+          - Check PROJECT_MAP.md for project structure details
+          - Run validation script if you encounter issues
+          EOF
+          
+          echo "✅ Created DEVELOPMENT.md"
+
+      - name: Mark branch as seeded
+        if: steps.branch-info.outputs.is_feature_branch == 'true' && steps.branch-info.outputs.already_seeded == 'false'
+        run: |
+          echo "✅ Marking branch as seeded..."
+          mkdir -p .github
+          cat > .github/.seeded << EOF
+          UMBRA Feature Branch Seeded
+          Branch: ${{ steps.branch-info.outputs.branch_name }}
+          Date: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          Workflow: ${{ github.workflow }}
+          Run ID: ${{ github.run_id }}
+          EOF
+          echo "✅ Branch marked as seeded"
+
+      - name: Commit seeding artifacts
+        if: steps.branch-info.outputs.is_feature_branch == 'true' && steps.branch-info.outputs.already_seeded == 'false'
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action - Feature Branch Seeder"
+          
+          git add .env.dev DEVELOPMENT.md .github/.seeded
+          git add data/dev/ logs/dev/ temp/dev/ scripts/ 2>/dev/null || true
+          
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "🌱 Auto-seed feature branch: ${{ steps.branch-info.outputs.branch_name }}
+
+            - Added development environment template (.env.dev)
+            - Created development directory structure
+            - Added branch-specific documentation (DEVELOPMENT.md) 
+            - Marked branch as seeded
+            
+            Auto-generated by GitHub Actions workflow"
+            
+            git push
+            echo "✅ Seeding artifacts committed and pushed"
+          fi
+
+      - name: Run final validation
+        if: steps.branch-info.outputs.is_feature_branch == 'true'
+        run: |
+          echo "🏁 Running final validation..."
+          python scripts/validate_branch_setup.py --final-check
+          echo "✅ Final validation completed"
+
+      - name: Generate seeding summary
+        if: steps.branch-info.outputs.is_feature_branch == 'true'
+        run: |
+          echo "## 🌟 Feature Branch Seeding Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** \`${{ steps.branch-info.outputs.branch_name }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Status:** ✅ Successfully Seeded" >> $GITHUB_STEP_SUMMARY
+          echo "**Date:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🛠️ What was set up:" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Python dependencies installed and validated" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Development environment template created (`.env.dev`)" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Development directory structure initialized" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Database structure prepared" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Branch-specific documentation created (`DEVELOPMENT.md`)" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Validation scripts ready" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🚀 Next steps:" >> $GITHUB_STEP_SUMMARY
+          echo "1. Check out your feature branch locally" >> $GITHUB_STEP_SUMMARY
+          echo "2. Copy \`.env.dev\` to \`.env\` and configure with your values" >> $GITHUB_STEP_SUMMARY
+          echo "3. Run \`python scripts/validate_branch_setup.py\` to validate setup" >> $GITHUB_STEP_SUMMARY
+          echo "4. Start development with \`python main.py\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📚 Documentation:" >> $GITHUB_STEP_SUMMARY
+          echo "- **DEVELOPMENT.md** - Branch-specific development guide" >> $GITHUB_STEP_SUMMARY
+          echo "- **ACTION_PLAN.md** - Complete project setup instructions" >> $GITHUB_STEP_SUMMARY
+          echo "- **PROJECT_MAP.md** - Project structure and architecture" >> $GITHUB_STEP_SUMMARY
+
+      - name: Skip seeding for non-feature branches
+        if: steps.branch-info.outputs.is_feature_branch == 'false'
+        run: |
+          echo "ℹ️ Skipping seeding for non-feature branch: ${{ steps.branch-info.outputs.branch_name }}"
+          echo "💡 This workflow only seeds branches matching: feature/*, feat/*, enhancement/*, dev/*"
+
+      - name: Skip seeding for already seeded branches
+        if: steps.branch-info.outputs.is_feature_branch == 'true' && steps.branch-info.outputs.already_seeded == 'true'
+        run: |
+          echo "✅ Branch ${{ steps.branch-info.outputs.branch_name }} is already seeded"
+          echo "💡 Use 'force_seed: true' in workflow_dispatch to re-seed"
+          echo "📋 Seeding status:" 
+          cat .github/.seeded || echo "Seeding file not found"
