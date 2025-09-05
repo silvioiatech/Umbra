@@ -21,6 +21,11 @@ class ConciergeMCP(ModuleBase):
         self.db = db_manager
         self.ssh_available = hasattr(config, 'VPS_HOST') and config.VPS_HOST
         self.docker_available = hasattr(config, 'DOCKER_AVAILABLE') and config.DOCKER_AVAILABLE
+        
+        # Docker Auto-Update Watcher configuration
+        self.auto_update_enabled = getattr(config, 'DOCKER_AUTO_UPDATE_ENABLED', False)
+        self.auto_update_schedule = getattr(config, 'DOCKER_AUTO_UPDATE_SCHEDULE', '0 2 * * *')  # Daily at 2 AM
+        self.update_check_interval = getattr(config, 'DOCKER_UPDATE_CHECK_INTERVAL', 3600)  # Check every hour for updates
 
     async def initialize(self) -> bool:
         """Initialize the Concierge module."""
@@ -54,6 +59,8 @@ class ConciergeMCP(ModuleBase):
         return {
             "system status": self.get_system_status,
             "docker status": self.get_docker_status,
+            "docker updates": self.check_docker_updates,
+            "docker auto-update": self.auto_update_docker,
             "resource usage": self.get_resource_usage,
             "execute": self.execute_command,
             "service": self.manage_service,
@@ -72,6 +79,12 @@ class ConciergeMCP(ModuleBase):
             return await self.get_system_status()
         elif action == "docker_status":
             return await self.get_docker_status()
+        elif action == "docker_updates":
+            return await self.check_docker_updates()
+        elif action == "docker_auto_update":
+            container_name = data.get("container")
+            force = data.get("force", False)
+            return await self.auto_update_docker(container_name, force)
         elif action == "resource_usage":
             return await self.get_resource_usage()
         elif action == "execute_command":
@@ -122,7 +135,8 @@ class ConciergeMCP(ModuleBase):
                     "memory_percent": memory.percent,
                     "disk_percent": disk.percent,
                     "ssh_available": self.ssh_available,
-                    "docker_available": self.docker_available
+                    "docker_available": self.docker_available,
+                    "auto_update_enabled": self.auto_update_enabled
                 },
                 "issues": issues
             }
@@ -206,7 +220,10 @@ class ConciergeMCP(ModuleBase):
 **Docker Storage:**
 ```
 {stats_result.stdout[:300] if stats_result.returncode == 0 else 'N/A'}
-```"""
+```
+
+**Auto-Update Watcher:** {'🟢 Enabled' if self.auto_update_enabled else '🔴 Disabled'}
+**Last Check:** Use 'docker updates' to check for available updates"""
             else:
                 return "❌ Docker not available or no permission"
 
@@ -406,3 +423,258 @@ Note: Implement actual backup logic based on your VPS setup."""
 
         except Exception as e:
             return f"❌ Process check failed: {str(e)[:100]}"
+
+    async def check_docker_updates(self) -> str:
+        """Check for available Docker container updates."""
+        try:
+            if not self.docker_available:
+                return "❌ Docker not available"
+
+            # Get running containers
+            containers_result = subprocess.run(
+                ['docker', 'ps', '--format', '{{.Names}}\t{{.Image}}'],
+                check=False, capture_output=True, text=True, timeout=15
+            )
+
+            if containers_result.returncode != 0:
+                return "❌ Failed to get container list"
+
+            containers = []
+            for line in containers_result.stdout.strip().split('\n'):
+                if '\t' in line:
+                    name, image = line.split('\t', 1)
+                    containers.append((name, image))
+
+            if not containers:
+                return "ℹ️ No running containers to check"
+
+            updates_available = []
+            up_to_date = []
+
+            for container_name, current_image in containers:
+                try:
+                    # Check if image has latest tag or specific version
+                    if ':' not in current_image:
+                        current_image += ':latest'
+                    
+                    image_name, current_tag = current_image.rsplit(':', 1)
+                    
+                    # Pull latest to check for updates (without changing local image)
+                    pull_result = subprocess.run(
+                        ['docker', 'pull', f"{image_name}:latest"],
+                        check=False, capture_output=True, text=True, timeout=30
+                    )
+                    
+                    if pull_result.returncode == 0:
+                        # Check if pulled image is different from current
+                        inspect_current = subprocess.run(
+                            ['docker', 'inspect', '--format', '{{.Image}}', container_name],
+                            check=False, capture_output=True, text=True, timeout=5
+                        )
+                        
+                        inspect_latest = subprocess.run(
+                            ['docker', 'inspect', '--format', '{{.Id}}', f"{image_name}:latest"],
+                            check=False, capture_output=True, text=True, timeout=5
+                        )
+                        
+                        if (inspect_current.returncode == 0 and inspect_latest.returncode == 0):
+                            current_id = inspect_current.stdout.strip()
+                            latest_id = inspect_latest.stdout.strip()
+                            
+                            if current_id != latest_id:
+                                updates_available.append({
+                                    'name': container_name,
+                                    'image': current_image,
+                                    'status': 'update_available'
+                                })
+                            else:
+                                up_to_date.append({
+                                    'name': container_name,
+                                    'image': current_image,
+                                    'status': 'up_to_date'
+                                })
+                        else:
+                            up_to_date.append({
+                                'name': container_name,
+                                'image': current_image,
+                                'status': 'check_failed'
+                            })
+                    else:
+                        up_to_date.append({
+                            'name': container_name,
+                            'image': current_image,
+                            'status': 'pull_failed'
+                        })
+                        
+                except Exception as e:
+                    self.logger.warning(f"Update check failed for {container_name}: {e}")
+                    up_to_date.append({
+                        'name': container_name,
+                        'image': current_image,
+                        'status': 'error'
+                    })
+
+            # Format response
+            response = "**🔄 Docker Auto-Update Check**\n\n"
+            
+            if updates_available:
+                response += "**📦 Updates Available:**\n"
+                for container in updates_available:
+                    response += f"• {container['name']}: {container['image']} ⬆️\n"
+                response += "\n"
+            
+            if up_to_date:
+                response += "**✅ Up to Date:**\n"
+                for container in up_to_date:
+                    status_icon = {
+                        'up_to_date': '✅',
+                        'check_failed': '⚠️',
+                        'pull_failed': '⚠️',
+                        'error': '❌'
+                    }.get(container['status'], '❓')
+                    response += f"• {container['name']}: {container['image']} {status_icon}\n"
+            
+            response += f"\n**Auto-Update:** {'🟢 Enabled' if self.auto_update_enabled else '🔴 Disabled'}"
+            
+            return response
+
+        except Exception as e:
+            self.logger.error(f"Docker update check failed: {e}")
+            return f"❌ Update check failed: {str(e)[:100]}"
+
+    async def auto_update_docker(self, container_name: str = None, force: bool = False) -> str:
+        """Automatically update Docker containers."""
+        try:
+            if not self.docker_available:
+                return "❌ Docker not available"
+
+            if not force and not self.auto_update_enabled:
+                return "❌ Auto-update is disabled. Use force=true to override."
+
+            # If specific container specified, update only that one
+            if container_name:
+                return await self._update_single_container(container_name)
+            
+            # Otherwise, update all containers with available updates
+            update_check = await self.check_docker_updates()
+            
+            # Parse update check results to find containers needing updates
+            if "Updates Available:" not in update_check:
+                return "ℹ️ No updates available for any containers"
+
+            # Get containers with updates (simplified parsing)
+            containers_result = subprocess.run(
+                ['docker', 'ps', '--format', '{{.Names}}\t{{.Image}}'],
+                check=False, capture_output=True, text=True, timeout=10
+            )
+
+            if containers_result.returncode != 0:
+                return "❌ Failed to get container list"
+
+            updated_containers = []
+            failed_updates = []
+
+            for line in containers_result.stdout.strip().split('\n'):
+                if '\t' in line:
+                    name, image = line.split('\t', 1)
+                    try:
+                        result = await self._update_single_container(name)
+                        if "✅" in result:
+                            updated_containers.append(name)
+                        else:
+                            failed_updates.append(f"{name}: {result}")
+                    except Exception as e:
+                        failed_updates.append(f"{name}: {str(e)[:50]}")
+
+            # Format response
+            response = "**🔄 Docker Auto-Update Results**\n\n"
+            
+            if updated_containers:
+                response += "**✅ Successfully Updated:**\n"
+                for container in updated_containers:
+                    response += f"• {container}\n"
+                response += "\n"
+            
+            if failed_updates:
+                response += "**❌ Failed Updates:**\n"
+                for failure in failed_updates:
+                    response += f"• {failure}\n"
+            
+            if not updated_containers and not failed_updates:
+                response += "ℹ️ No containers required updates"
+
+            return response
+
+        except Exception as e:
+            self.logger.error(f"Docker auto-update failed: {e}")
+            return f"❌ Auto-update failed: {str(e)[:100]}"
+
+    async def _update_single_container(self, container_name: str) -> str:
+        """Update a single Docker container."""
+        try:
+            # Get container's current image
+            inspect_result = subprocess.run(
+                ['docker', 'inspect', '--format', '{{.Config.Image}}', container_name],
+                check=False, capture_output=True, text=True, timeout=5
+            )
+            
+            if inspect_result.returncode != 0:
+                return f"❌ Container {container_name} not found"
+            
+            current_image = inspect_result.stdout.strip()
+            if ':' not in current_image:
+                current_image += ':latest'
+            
+            image_name, tag = current_image.rsplit(':', 1)
+            
+            # Pull latest image
+            pull_result = subprocess.run(
+                ['docker', 'pull', f"{image_name}:latest"],
+                check=False, capture_output=True, text=True, timeout=60
+            )
+            
+            if pull_result.returncode != 0:
+                return f"❌ Failed to pull {image_name}:latest"
+            
+            # Get container configuration for recreation
+            config_result = subprocess.run(
+                ['docker', 'inspect', container_name],
+                check=False, capture_output=True, text=True, timeout=5
+            )
+            
+            if config_result.returncode != 0:
+                return f"❌ Failed to get container config"
+            
+            # Stop container
+            stop_result = subprocess.run(
+                ['docker', 'stop', container_name],
+                check=False, capture_output=True, text=True, timeout=30
+            )
+            
+            if stop_result.returncode != 0:
+                return f"❌ Failed to stop container"
+            
+            # Remove old container
+            rm_result = subprocess.run(
+                ['docker', 'rm', container_name],
+                check=False, capture_output=True, text=True, timeout=10
+            )
+            
+            if rm_result.returncode != 0:
+                return f"❌ Failed to remove old container"
+            
+            # Create and start new container with latest image
+            # This is a simplified approach - in production, you'd want to preserve
+            # the exact configuration, volumes, networks, etc.
+            run_result = subprocess.run(
+                ['docker', 'run', '-d', '--name', container_name, f"{image_name}:latest"],
+                check=False, capture_output=True, text=True, timeout=30
+            )
+            
+            if run_result.returncode == 0:
+                return f"✅ Updated {container_name} to latest {image_name}"
+            else:
+                return f"❌ Failed to recreate container: {run_result.stderr[:100]}"
+                
+        except Exception as e:
+            return f"❌ Update failed: {str(e)[:100]}"

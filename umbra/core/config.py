@@ -52,6 +52,11 @@ class UmbraConfig:
         self.N8N_API_URL = os.getenv('N8N_API_URL')
         self.N8N_API_KEY = os.getenv('N8N_API_KEY')
         
+        # Docker Auto-Update Configuration
+        self.DOCKER_AUTO_UPDATE_ENABLED = self._parse_bool('DOCKER_AUTO_UPDATE_ENABLED', default=False)
+        self.DOCKER_AUTO_UPDATE_SCHEDULE = os.getenv('DOCKER_AUTO_UPDATE_SCHEDULE', '0 2 * * *')  # Daily at 2 AM
+        self.DOCKER_UPDATE_CHECK_INTERVAL = int(os.getenv('DOCKER_UPDATE_CHECK_INTERVAL', '3600'))  # 1 hour
+        
         # Alert Thresholds
         self.CPU_ALERT_THRESHOLD = int(os.getenv('CPU_ALERT_THRESHOLD', '85'))
         self.MEMORY_ALERT_THRESHOLD = int(os.getenv('MEMORY_ALERT_THRESHOLD', '85'))
