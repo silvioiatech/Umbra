@@ -149,6 +149,48 @@ class DatabaseManager:
             conn.commit()
             self.logger.info("Database initialized successfully")
     
+    def execute(self, query: str, params: tuple = None) -> bool:
+        """Execute a query (for INSERT, UPDATE, DELETE)."""
+        try:
+            with self.get_connection() as conn:
+                if params:
+                    conn.execute(query, params)
+                else:
+                    conn.execute(query)
+                conn.commit()
+                return True
+        except Exception as e:
+            self.logger.error(f"Database execute error: {e}")
+            return False
+    
+    def query_one(self, query: str, params: tuple = None) -> Optional[Dict[str, Any]]:
+        """Execute a query and return one result as a dictionary."""
+        try:
+            with self.get_connection() as conn:
+                if params:
+                    cursor = conn.execute(query, params)
+                else:
+                    cursor = conn.execute(query)
+                row = cursor.fetchone()
+                return dict(row) if row else None
+        except Exception as e:
+            self.logger.error(f"Database query_one error: {e}")
+            return None
+    
+    def query_all(self, query: str, params: tuple = None) -> List[Dict[str, Any]]:
+        """Execute a query and return all results as dictionaries."""
+        try:
+            with self.get_connection() as conn:
+                if params:
+                    cursor = conn.execute(query, params)
+                else:
+                    cursor = conn.execute(query)
+                rows = cursor.fetchall()
+                return [dict(row) for row in rows]
+        except Exception as e:
+            self.logger.error(f"Database query_all error: {e}")
+            return []
+    
     @contextmanager
     def get_connection(self):
         """Context manager for database connections."""

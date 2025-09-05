@@ -34,6 +34,14 @@ class BusinessMCP(ModuleBase):
         # Initialize business intelligence database
         self._init_database()
 
+    def get_capabilities(self) -> list[str]:
+        """Get list of capabilities this module provides."""
+        return [
+            "create_client_instance", "list_clients", "client_dashboard",
+            "create_project", "update_project", "generate_invoice",
+            "business_analytics", "client_health_check", "resource_monitoring"
+        ]
+
     async def initialize(self) -> bool:
         """Initialize the Business module with smart features."""
         try:
@@ -547,3 +555,26 @@ Instance ID: {instance_id}
 
             if not clients:
                 return """No clients yet. 
+Ready to create your first client VPS instance!
+
+Use: 'create client instance [client_name]' to get started."""
+
+            dashboard = ["📊 **CLIENT DASHBOARD**", "=" * 40, ""]
+            
+            for client in clients:
+                status_emoji = "🟢" if client['status'] == 'active' else "🟡" if client['status'] == 'pending' else "🔴"
+                health_emoji = "💚" if client['health_score'] >= 90 else "💛" if client['health_score'] >= 70 else "❤️"
+                
+                dashboard.extend([
+                    f"{status_emoji} **{client['name']}** {health_emoji}",
+                    f"   Health: {client['health_score']}/100",
+                    f"   Revenue: ${client['monthly_revenue']:.2f}/month",
+                    f"   Projects: {client['active_projects']} active",
+                    ""
+                ])
+            
+            return "\n".join(dashboard)
+            
+        except Exception as e:
+            self.logger.error(f"Dashboard error: {e}")
+            return f"❌ Dashboard error: {str(e)}"

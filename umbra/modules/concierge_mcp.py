@@ -49,18 +49,35 @@ class ConciergeMCP(ModuleBase):
             self.logger.error(f"Concierge initialization failed: {e}")
             return False
 
+    def get_capabilities(self) -> list[str]:
+        """Get list of capabilities this module provides."""
+        return [
+            "system_status", "docker_status", "resource_usage", 
+            "execute_command", "manage_service", "get_logs",
+            "check_ports", "backup_system", "list_processes"
+        ]
+
     async def register_handlers(self) -> dict[str, Any]:
         """Register command handlers for the Concierge module."""
         return {
             "system status": self.get_system_status,
+            "system_status": self.get_system_status,
             "docker status": self.get_docker_status,
+            "docker_status": self.get_docker_status,
             "resource usage": self.get_resource_usage,
+            "resource_usage": self.get_resource_usage,
             "execute": self.execute_command,
+            "execute_command": self.execute_command,
             "service": self.manage_service,
+            "manage_service": self.manage_service,
             "logs": self.get_recent_logs,
+            "get_logs": self.get_recent_logs,
             "ports": self.check_ports,
+            "check_ports": self.check_ports,
             "backup": self.backup_system,
-            "processes": self.get_running_processes
+            "backup_system": self.backup_system,
+            "processes": self.get_running_processes,
+            "list_processes": self.get_running_processes
         }
 
     async def process_envelope(self, envelope: InternalEnvelope) -> str | None:
