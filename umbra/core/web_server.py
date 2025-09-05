@@ -37,11 +37,15 @@ class MetricsServer:
     
     async def _cors_middleware(self, request, handler):
         """Add CORS headers for cross-origin requests."""
-        response = await handler(request)
-        response.headers['Access-Control-Allow-Origin'] = '*'
-        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
-        response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
-        return response
+        try:
+            response = await handler(request)
+            response.headers['Access-Control-Allow-Origin'] = '*'
+            response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
+            response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+            return response
+        except Exception as e:
+            # Return proper error response
+            return web.Response(text=f"Error: {str(e)}", status=500)
     
     async def _metrics_handler(self, request):
         """Prometheus metrics endpoint."""
@@ -54,7 +58,7 @@ class MetricsServer:
             
             return web.Response(
                 text=prometheus_data,
-                content_type='text/plain; charset=utf-8'
+                content_type='text/plain'
             )
         except Exception as e:
             self.logger.error(f"Error serving metrics: {e}")
