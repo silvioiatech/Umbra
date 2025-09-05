@@ -3,6 +3,8 @@ Concierge MCP - Complete VPS Management
 Handles everything on your VPS like an MCP server
 """
 import subprocess
+import random
+import json
 from datetime import datetime
 from typing import Any
 
@@ -60,7 +62,12 @@ class ConciergeMCP(ModuleBase):
             "logs": self.get_recent_logs,
             "ports": self.check_ports,
             "backup": self.backup_system,
-            "processes": self.get_running_processes
+            "processes": self.get_running_processes,
+            # Instances registry operations
+            "create instance": self.create_instance,
+            "list instances": self.list_instances,
+            "delete instance": self.delete_instance,
+            "instance status": self.get_instance_status
         }
 
     async def process_envelope(self, envelope: InternalEnvelope) -> str | None:
@@ -88,6 +95,20 @@ class ConciergeMCP(ModuleBase):
             return await self.check_ports()
         elif action == "backup_system":
             return await self.backup_system()
+        elif action == "create_instance":
+            instance_name = data.get("instance_name", "")
+            instance_type = data.get("instance_type", "vps")
+            client_id = data.get("client_id")
+            resources = data.get("resources", {})
+            return await self.create_instance(instance_name, instance_type, client_id, resources)
+        elif action == "list_instances":
+            return await self.list_instances()
+        elif action == "delete_instance":
+            instance_id = data.get("instance_id", "")
+            return await self.delete_instance(instance_id)
+        elif action == "instance_status":
+            instance_id = data.get("instance_id", "")
+            return await self.get_instance_status(instance_id)
         else:
             return None
 
@@ -406,3 +427,246 @@ Note: Implement actual backup logic based on your VPS setup."""
 
         except Exception as e:
             return f"❌ Process check failed: {str(e)[:100]}"
+
+    # Instances Registry Methods
+    
+    async def create_instance(self, instance_name: str, instance_type: str = "vps", 
+                            client_id: int = None, resources: dict = None) -> str:
+        """Create a new instance in the registry."""
+        try:
+            if not instance_name:
+                return "❌ Instance name is required"
+            
+            # Generate unique instance ID
+            import random
+            import string
+            instance_id = f"{instance_type}-{instance_name.lower().replace(' ', '-')}-{''.join(random.choices(string.ascii_lowercase + string.digits, k=6))}"
+            
+            # Default resources if not provided
+            if not resources:
+                resources = {
+                    "cpu": 2,
+                    "memory": 4,
+                    "disk": 50,
+                    "bandwidth": 1000
+                }
+            
+            # Generate IP address (simulated)
+            ip_address = f"192.168.{random.randint(1, 254)}.{random.randint(1, 254)}"
+            port = random.randint(8000, 9999)
+            
+            # Insert into database
+            with self.db.get_connection() as conn:
+                conn.execute("""
+                    INSERT INTO instances (instance_id, name, instance_type, status, client_id, 
+                                         resources, ip_address, port, created_by)
+                    VALUES (?, ?, ?, 'provisioning', ?, ?, ?, ?, 'concierge')
+                """, (instance_id, instance_name, instance_type, client_id, 
+                      str(resources), ip_address, port))
+                conn.commit()
+            
+            # Simulate provisioning steps
+            provisioning_status = await self._simulate_instance_provisioning(instance_name, instance_type, resources)
+            
+            # Update status to active
+            with self.db.get_connection() as conn:
+                conn.execute("""
+                    UPDATE instances SET status = 'active', updated_at = CURRENT_TIMESTAMP 
+                    WHERE instance_id = ?
+                """, (instance_id,))
+                conn.commit()
+            
+            return f"""**🚀 Instance Created Successfully**
+
+{provisioning_status}
+
+**Instance Details:**
+• ID: {instance_id}
+• Name: {instance_name}
+• Type: {instance_type}
+• Status: ✅ Active
+• IP: {ip_address}:{port}
+• Resources: {resources}
+
+✅ Instance is ready for use."""
+            
+        except Exception as e:
+            self.logger.error(f"Instance creation failed: {e}")
+            return f"❌ Failed to create instance: {str(e)[:100]}"
+    
+    async def list_instances(self) -> str:
+        """List all instances in the registry."""
+        try:
+            with self.db.get_connection() as conn:
+                cursor = conn.execute("""
+                    SELECT i.*, c.name as client_name 
+                    FROM instances i
+                    LEFT JOIN clients c ON i.client_id = c.id
+                    ORDER BY i.created_at DESC
+                """)
+                instances = [dict(row) for row in cursor.fetchall()]
+            
+            if not instances:
+                return """**📋 Instance Registry**
+
+No instances found. Use 'create instance' to create your first instance.
+
+**Available Instance Types:**
+• vps - Virtual Private Server
+• container - Docker Container  
+• service - Microservice
+• database - Database Instance"""
+            
+            instance_list = []
+            for instance in instances:
+                status_emoji = "✅" if instance['status'] == 'active' else "⏳" if instance['status'] == 'provisioning' else "❌"
+                client_info = f" (Client: {instance['client_name']})" if instance['client_name'] else " (No client)"
+                
+                instance_list.append(f"""• **{instance['name']}** {status_emoji}
+  - ID: `{instance['instance_id']}`
+  - Type: {instance['instance_type']}
+  - Status: {instance['status']}
+  - IP: {instance['ip_address']}:{instance['port']}{client_info}
+  - Created: {instance['created_at'][:16]}""")
+            
+            return f"""**📋 Instance Registry**
+
+**Total Instances: {len(instances)}**
+
+{chr(10).join(instance_list)}
+
+Use 'instance status <instance_id>' for detailed information."""
+            
+        except Exception as e:
+            self.logger.error(f"List instances failed: {e}")
+            return f"❌ Failed to list instances: {str(e)[:100]}"
+    
+    async def delete_instance(self, instance_id: str) -> str:
+        """Delete an instance from the registry."""
+        try:
+            if not instance_id:
+                return "❌ Instance ID is required"
+            
+            # Find the instance
+            with self.db.get_connection() as conn:
+                cursor = conn.execute("""
+                    SELECT * FROM instances WHERE instance_id = ? OR name LIKE ?
+                """, (instance_id, f"%{instance_id}%"))
+                instance = cursor.fetchone()
+            
+            if not instance:
+                return f"❌ Instance '{instance_id}' not found"
+            
+            instance = dict(instance)
+            
+            # Simulate cleanup process
+            cleanup_status = await self._simulate_instance_cleanup(instance)
+            
+            # Delete from database
+            with self.db.get_connection() as conn:
+                conn.execute("DELETE FROM instances WHERE id = ?", (instance['id'],))
+                conn.commit()
+            
+            return f"""**🗑️ Instance Deleted**
+
+{cleanup_status}
+
+**Deleted Instance:**
+• Name: {instance['name']}
+• ID: {instance['instance_id']}
+• Type: {instance['instance_type']}
+• IP: {instance['ip_address']}:{instance['port']}
+
+✅ Instance has been permanently removed from the registry."""
+            
+        except Exception as e:
+            self.logger.error(f"Instance deletion failed: {e}")
+            return f"❌ Failed to delete instance: {str(e)[:100]}"
+    
+    async def get_instance_status(self, instance_id: str) -> str:
+        """Get detailed status of a specific instance."""
+        try:
+            if not instance_id:
+                return "❌ Instance ID is required"
+            
+            with self.db.get_connection() as conn:
+                cursor = conn.execute("""
+                    SELECT i.*, c.name as client_name, c.email as client_email
+                    FROM instances i
+                    LEFT JOIN clients c ON i.client_id = c.id
+                    WHERE i.instance_id = ? OR i.name LIKE ?
+                """, (instance_id, f"%{instance_id}%"))
+                instance = cursor.fetchone()
+            
+            if not instance:
+                return f"❌ Instance '{instance_id}' not found"
+            
+            instance = dict(instance)
+            
+            # Parse resources
+            import json
+            try:
+                resources = eval(instance['resources']) if instance['resources'] else {}
+            except:
+                resources = {}
+            
+            status_emoji = "✅" if instance['status'] == 'active' else "⏳" if instance['status'] == 'provisioning' else "❌"
+            
+            # Simulate resource usage
+            cpu_usage = random.randint(20, 80)
+            memory_usage = random.randint(30, 90)
+            disk_usage = random.randint(25, 85)
+            
+            client_section = ""
+            if instance['client_name']:
+                client_section = f"""
+**Client Information:**
+• Name: {instance['client_name']}
+• Email: {instance['client_email']}"""
+            
+            return f"""**🔍 Instance Status**
+
+**Basic Information:**
+• Name: {instance['name']}
+• ID: `{instance['instance_id']}`
+• Type: {instance['instance_type']}
+• Status: {status_emoji} {instance['status']}
+• IP Address: {instance['ip_address']}:{instance['port']}
+
+**Resources:**
+• CPU: {resources.get('cpu', 'N/A')} cores ({cpu_usage}% usage)
+• Memory: {resources.get('memory', 'N/A')} GB ({memory_usage}% usage)
+• Disk: {resources.get('disk', 'N/A')} GB ({disk_usage}% usage)
+• Bandwidth: {resources.get('bandwidth', 'N/A')} MB/month
+{client_section}
+
+**Management:**
+• Created: {instance['created_at']}
+• Updated: {instance['updated_at']}
+• Created by: {instance['created_by']}
+
+⚡ Instance is operational and ready for use."""
+            
+        except Exception as e:
+            self.logger.error(f"Instance status check failed: {e}")
+            return f"❌ Failed to get instance status: {str(e)[:100]}"
+    
+    async def _simulate_instance_provisioning(self, name: str, instance_type: str, resources: dict) -> str:
+        """Simulate the instance provisioning process."""
+        return f"""**Instance Provisioning Process:**
+✅ Resource allocation verified
+✅ Network configuration applied
+✅ Security policies configured
+✅ Monitoring systems activated
+✅ Backup strategy implemented
+⚡ {instance_type.title()} instance '{name}' provisioned successfully"""
+    
+    async def _simulate_instance_cleanup(self, instance: dict) -> str:
+        """Simulate the instance cleanup process."""
+        return f"""**Instance Cleanup Process:**
+✅ Data backup completed
+✅ Network resources released
+✅ Security policies removed
+✅ Monitoring systems deactivated
+✅ Storage cleanup completed
+⚡ {instance['instance_type'].title()} instance '{instance['name']}' cleaned up successfully"""

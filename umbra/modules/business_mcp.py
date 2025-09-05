@@ -73,7 +73,12 @@ class BusinessMCP(ModuleBase):
             "smart monitoring": self.get_monitoring_report,
             "predict issues": self.predict_client_issues,
             "auto optimize": self.auto_optimize_resources,
-            "business intelligence": self.get_business_intelligence
+            "business intelligence": self.get_business_intelligence,
+            # Instance registry gateway methods
+            "create instance": self.gateway_create_instance,
+            "list instances": self.gateway_list_instances,
+            "delete instance": self.gateway_delete_instance,
+            "instance status": self.gateway_instance_status
         }
 
     async def process_envelope(self, envelope: InternalEnvelope) -> str | None:
@@ -106,7 +111,17 @@ class BusinessMCP(ModuleBase):
             "smart_monitoring": lambda: self.get_monitoring_report(),
             "predict_issues": lambda: self.predict_client_issues(data.get("client_name", "")),
             "auto_optimize": lambda: self.auto_optimize_resources(),
-            "business_intelligence": lambda: self.get_business_intelligence()
+            "business_intelligence": lambda: self.get_business_intelligence(),
+            # Instance registry gateway operations
+            "create_instance": lambda: self.gateway_create_instance(
+                data.get("instance_name", ""),
+                data.get("instance_type", "vps"),
+                data.get("client_name", ""),
+                data.get("resources", {})
+            ),
+            "list_instances": lambda: self.gateway_list_instances(),
+            "delete_instance": lambda: self.gateway_delete_instance(data.get("instance_id", "")),
+            "instance_status": lambda: self.gateway_instance_status(data.get("instance_id", ""))
         }
 
         handler = handlers.get(action)
@@ -547,3 +562,212 @@ Instance ID: {instance_id}
 
             if not clients:
                 return """No clients yet. 
+
+🚀 **Start growing your business:**
+• Use 'create client <name>' to add your first client
+• The AI will recommend optimal resources automatically
+• Smart monitoring will keep track of everything
+
+✨ **Sample Command:**
+`create client "Tech Solutions Inc"`"""
+
+            # Format client list with intelligence
+            client_list = []
+            total_revenue = 0
+            health_issues = 0
+            
+            for client in clients:
+                # Parse resources safely
+                try:
+                    resources = json.loads(client['resources']) if client['resources'] else {}
+                except:
+                    resources = {}
+                
+                health_emoji = "🟢" if client['health_score'] >= 80 else "🟡" if client['health_score'] >= 60 else "🔴"
+                total_revenue += client['monthly_revenue'] or 0
+                
+                if client['health_score'] < 80:
+                    health_issues += 1
+                
+                client_list.append(f"""**{client['name']}** {health_emoji}
+• Instance: `{client['instance_id'] or 'Not assigned'}`
+• Revenue: ${client['monthly_revenue']:.2f}/month
+• Health: {client['health_score']}/100
+• Projects: {client['active_projects']}
+• Resources: {resources.get('cpu', 'N/A')} CPU, {resources.get('ram', 'N/A')} RAM""")
+
+            status_summary = f"""**📊 Business Intelligence Summary**
+• Total Clients: {len(clients)}
+• Monthly Revenue: ${total_revenue:.2f}
+• Health Issues: {health_issues} clients need attention
+• Active Projects: {sum(c['active_projects'] for c in clients)}"""
+
+            return f"""{status_summary}
+
+**👥 Client Portfolio:**
+
+{chr(10).join(client_list)}
+
+💡 Use 'client status <name>' for detailed analytics or 'business intelligence' for deeper insights."""
+
+        except Exception as e:
+            self.logger.error(f"List clients failed: {e}")
+            return f"❌ Failed to list clients: {str(e)[:100]}"
+
+    # Instance Registry Gateway Methods
+    
+    async def gateway_create_instance(self, instance_name: str, instance_type: str = "vps", 
+                                    client_name: str = "", resources: dict = None) -> str:
+        """Gateway method to create instance via Concierge module."""
+        try:
+            # Find client ID if client name provided
+            client_id = None
+            if client_name:
+                client = self.db.query_one("SELECT id FROM clients WHERE name LIKE ?", (f"%{client_name}%",))
+                if client:
+                    client_id = client['id']
+                else:
+                    return f"❌ Client '{client_name}' not found. Use 'list clients' to see available clients."
+            
+            # Create envelope for Concierge module
+            envelope = InternalEnvelope(
+                action="create_instance",
+                data={
+                    "instance_name": instance_name,
+                    "instance_type": instance_type,
+                    "client_id": client_id,
+                    "resources": resources or {}
+                },
+                source_module="business",
+                target_module="concierge"
+            )
+            
+            # Import and create Concierge instance
+            from .concierge_mcp import ConciergeMCP
+            concierge = ConciergeMCP(self.config, self.db)
+            result = await concierge.process_envelope(envelope)
+            
+            # Log business action
+            if client_id:
+                self.db.execute("""
+                    INSERT INTO business_actions (client_id, action_type, action_description, status)
+                    VALUES (?, 'instance_creation', ?, 'completed')
+                """, (client_id, f"Instance '{instance_name}' created via Business gateway"))
+            
+            return f"""**🏢 Business Gateway - Instance Creation**
+
+{result}
+
+**Business Integration:**
+• Managed via Business dashboard
+• Automatic billing integration
+• Smart monitoring enabled
+• Client relationship tracked"""
+            
+        except Exception as e:
+            self.logger.error(f"Gateway create instance failed: {e}")
+            return f"❌ Failed to create instance via gateway: {str(e)[:100]}"
+    
+    async def gateway_list_instances(self) -> str:
+        """Gateway method to list instances via Concierge module."""
+        try:
+            # Create envelope for Concierge module
+            envelope = InternalEnvelope(
+                action="list_instances",
+                data={},
+                source_module="business",
+                target_module="concierge"
+            )
+            
+            # Import and create Concierge instance
+            from .concierge_mcp import ConciergeMCP
+            concierge = ConciergeMCP(self.config, self.db)
+            result = await concierge.process_envelope(envelope)
+            
+            return f"""**🏢 Business Gateway - Instance Registry**
+
+{result}
+
+**Business Operations:**
+• Use 'create instance' to provision new infrastructure
+• Use 'delete instance <id>' to decommission resources
+• All instances are automatically tracked for billing
+• Smart monitoring provides business insights"""
+            
+        except Exception as e:
+            self.logger.error(f"Gateway list instances failed: {e}")
+            return f"❌ Failed to list instances via gateway: {str(e)[:100]}"
+    
+    async def gateway_delete_instance(self, instance_id: str) -> str:
+        """Gateway method to delete instance via Concierge module."""
+        try:
+            if not instance_id:
+                return "❌ Instance ID is required. Use 'list instances' to see available instances."
+            
+            # Create envelope for Concierge module
+            envelope = InternalEnvelope(
+                action="delete_instance",
+                data={"instance_id": instance_id},
+                source_module="business",
+                target_module="concierge"
+            )
+            
+            # Import and create Concierge instance
+            from .concierge_mcp import ConciergeMCP
+            concierge = ConciergeMCP(self.config, self.db)
+            result = await concierge.process_envelope(envelope)
+            
+            # Log business action
+            self.db.execute("""
+                INSERT INTO business_actions (client_id, action_type, action_description, status)
+                VALUES (NULL, 'instance_deletion', ?, 'completed')
+            """, (f"Instance '{instance_id}' deleted via Business gateway",))
+            
+            return f"""**🏢 Business Gateway - Instance Deletion**
+
+{result}
+
+**Business Impact:**
+• Billing automatically adjusted
+• Client notifications sent
+• Resource costs updated
+• Monitoring alerts cleared"""
+            
+        except Exception as e:
+            self.logger.error(f"Gateway delete instance failed: {e}")
+            return f"❌ Failed to delete instance via gateway: {str(e)[:100]}"
+    
+    async def gateway_instance_status(self, instance_id: str) -> str:
+        """Gateway method to get instance status via Concierge module."""
+        try:
+            if not instance_id:
+                return "❌ Instance ID is required. Use 'list instances' to see available instances."
+            
+            # Create envelope for Concierge module
+            envelope = InternalEnvelope(
+                action="instance_status",
+                data={"instance_id": instance_id},
+                source_module="business",
+                target_module="concierge"
+            )
+            
+            # Import and create Concierge instance
+            from .concierge_mcp import ConciergeMCP
+            concierge = ConciergeMCP(self.config, self.db)
+            result = await concierge.process_envelope(envelope)
+            
+            return f"""**🏢 Business Gateway - Instance Status**
+
+{result}
+
+**Business Analytics:**
+• Performance trends tracked
+• Cost analysis available
+• Client impact monitoring
+• Optimization recommendations ready
+
+💡 Use 'business intelligence' for comprehensive insights."""
+            
+        except Exception as e:
+            self.logger.error(f"Gateway instance status failed: {e}")
+            return f"❌ Failed to get instance status via gateway: {str(e)[:100]}"

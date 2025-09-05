@@ -146,6 +146,27 @@ class DatabaseManager:
                 )
             """)
             
+            # Instances registry table for Concierge management
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS instances (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    instance_id TEXT UNIQUE NOT NULL,
+                    name TEXT NOT NULL,
+                    instance_type TEXT NOT NULL,
+                    status TEXT DEFAULT 'pending',
+                    client_id INTEGER,
+                    resources TEXT,
+                    config TEXT,
+                    ip_address TEXT,
+                    port INTEGER,
+                    created_by TEXT,
+                    metadata TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (client_id) REFERENCES clients (id)
+                )
+            """)
+            
             conn.commit()
             self.logger.info("Database initialized successfully")
     
