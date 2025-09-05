@@ -162,7 +162,7 @@ class UmbraAIAgent:
                 from .modules.production_mcp import ProductionMCP
                 module = ProductionMCP(self.config, self.db_manager)
             elif module_id == 'creator':
-                from .modules.creator_mcp import CreatorMCP
+                from .modules.creator import CreatorMCP
                 module = CreatorMCP(self.config, self.db_manager)
             else:
                 return None

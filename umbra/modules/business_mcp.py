@@ -546,4 +546,28 @@ Instance ID: {instance_id}
             """)
 
             if not clients:
-                return """No clients yet. 
+                return """No clients yet.
+                
+Use 'create client' to add your first client."""
+
+            client_lines = []
+            for client in clients:
+                status = "🟢 Active" if client.get('active_projects', 0) > 0 else "🟡 Inactive"
+                health = "⚡" if client.get('health_score', 0) > 80 else "⚠️"
+                
+                client_lines.append(
+                    f"{health} **{client['name']}** ({status})"
+                )
+                client_lines.append(f"   • Active Projects: {client.get('active_projects', 0)}")
+                client_lines.append(f"   • Health Score: {client.get('health_score', 0)}%")
+                client_lines.append("")
+
+            return f"""**👥 Client Overview**
+
+{chr(10).join(client_lines)}
+
+**Total Clients:** {len(clients)}
+**Active Clients:** {sum(1 for c in clients if c.get('active_projects', 0) > 0)}"""
+
+        except Exception as e:
+            return f"❌ Failed to list clients: {str(e)[:100]}" 
