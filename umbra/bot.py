@@ -10,13 +10,18 @@ from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
 from .core.config import config
+from .core.logging_mw import logging_middleware, get_structured_logger
+from .core.metrics import metrics
+from .core.audit import audit_logger
+from .core.rbac import Module, Action
+from .core.web_server import metrics_server
 
 class UmbraAIAgent:
     """Claude Desktop-style AI agent with MCP-like module integration."""
     
     def __init__(self, config_obj=None):
         self.config = config_obj or config
-        self.logger = logging.getLogger(__name__)
+        self.logger = get_structured_logger(__name__)
         self.application: Optional[Application] = None
         
         # Track start time for uptime
@@ -30,6 +35,9 @@ class UmbraAIAgent:
         
         # Initialize MCP-style modules
         self._init_mcp_modules()
+        
+        # Initialize metrics server
+        self._init_metrics_server()
     
     def _init_systems(self):
         """Initialize core systems."""
@@ -42,11 +50,43 @@ class UmbraAIAgent:
             self.db_manager = DatabaseManager(self.config.DATABASE_PATH)
             self.conversation_manager = ConversationManager(self.db_manager)
             
+            # Initialize metrics with active user counts
+            self._update_user_metrics()
+            
             self.logger.info("✅ Core systems initialized")
             
         except Exception as e:
             self.logger.error(f"❌ Core systems error: {e}")
             raise
+    
+    def _update_user_metrics(self):
+        """Update user metrics for monitoring."""
+        try:
+            role_counts = {}
+            for user_id in self.permission_manager.allowed_users:
+                role = self.permission_manager.get_user_role(user_id)
+                role_counts[role] = role_counts.get(role, 0) + 1
+            
+            metrics.update_active_users(role_counts)
+        except Exception as e:
+            self.logger.error(f"Error updating user metrics: {e}")
+    
+    def _init_metrics_server(self):
+        """Initialize metrics server."""
+        try:
+            # Configure metrics server port from config if available
+            port = getattr(self.config, 'METRICS_PORT', 8080)
+            if hasattr(self.config, 'PORT') and self.config.PORT:
+                # Use bot port + 1 for metrics if bot port is configured
+                try:
+                    port = int(self.config.PORT) + 1
+                except (ValueError, TypeError):
+                    port = 8080
+            
+            metrics_server.port = port
+            self.logger.info(f"Metrics server configured for port {port}")
+        except Exception as e:
+            self.logger.error(f"Error configuring metrics server: {e}")
     
     def _init_ai_agent(self):
         """Initialize Claude Desktop-style AI agent."""
@@ -183,6 +223,9 @@ class UmbraAIAgent:
         try:
             self.logger.info("🤖 Starting Umbra (Claude Desktop mode)...")
             
+            # Start metrics server first
+            await metrics_server.start()
+            
             # Create Telegram application
             self.application = Application.builder().token(self.config.TELEGRAM_BOT_TOKEN).build()
             
@@ -194,13 +237,32 @@ class UmbraAIAgent:
             await self.application.start()
             await self.application.updater.start_polling(drop_pending_updates=True)
             
+            # Log system startup
+            audit_logger.log_event(
+                user_id=0,  # System user
+                module="system",
+                action="bot_start",
+                details={
+                    "modules_loaded": len(self.modules),
+                    "metrics_port": metrics_server.port
+                }
+            )
+            
             self.logger.info("✅ Umbra started - Ready for natural conversation")
+            self.logger.info(f"📊 Metrics available at http://localhost:{metrics_server.port}/metrics")
             
             # Keep running
             await self._run_forever()
             
         except Exception as e:
             self.logger.error(f"❌ Failed to start: {e}")
+            audit_logger.log_error(
+                user_id=0,
+                module="system", 
+                action="bot_start",
+                error_type=type(e).__name__,
+                error_message=str(e)
+            )
             raise
         finally:
             await self.shutdown()
@@ -217,13 +279,28 @@ class UmbraAIAgent:
         """Graceful shutdown."""
         self.logger.info("🛑 Shutting down...")
         
+        # Log shutdown
+        audit_logger.log_event(
+            user_id=0,
+            module="system",
+            action="bot_shutdown",
+            details={"uptime_seconds": time.time() - self.start_time}
+        )
+        
+        # Stop metrics server
+        try:
+            await metrics_server.stop()
+        except Exception as e:
+            self.logger.warning(f"Metrics server shutdown warning: {e}")
+        
+        # Stop Telegram application
         if self.application:
             try:
                 await self.application.updater.stop()
                 await self.application.stop()
                 await self.application.shutdown()
             except Exception as e:
-                self.logger.warning(f"Shutdown warning: {e}")
+                self.logger.warning(f"Application shutdown warning: {e}")
         
         self.logger.info("✅ Shutdown complete")
     
@@ -248,19 +325,47 @@ class UmbraAIAgent:
         user_id = update.effective_user.id
         first_name = update.effective_user.first_name or "there"
         
-        if not self.permission_manager.is_user_allowed(user_id):
-            await update.message.reply_text("❌ Unauthorized. Add your ID to ALLOWED_USER_IDS.")
-            return
-        
-        # Add user to database
-        self.db_manager.add_user(
-            user_id, 
-            update.effective_user.username, 
-            first_name, 
-            update.effective_user.last_name
-        )
-        
-        welcome = f"""Hi {first_name}! I'm Umbra, your AI assistant with specialized capabilities.
+        # Use logging middleware and audit
+        with logging_middleware.log_request(user_id, "system", "start"):
+            if not self.permission_manager.is_user_allowed(user_id):
+                # Log unauthorized access attempt
+                audit_logger.log_access_attempt(
+                    user_id=user_id,
+                    module="system",
+                    action="start",
+                    granted=False,
+                    reason="User not in allowed list"
+                )
+                metrics.record_permission_check("system", "start", "denied")
+                await update.message.reply_text("❌ Unauthorized. Add your ID to ALLOWED_USER_IDS.")
+                return
+            
+            # Log successful access
+            audit_logger.log_access_attempt(
+                user_id=user_id,
+                module="system", 
+                action="start",
+                granted=True
+            )
+            metrics.record_permission_check("system", "start", "granted")
+            
+            # Add user to database
+            self.db_manager.add_user(
+                user_id, 
+                update.effective_user.username, 
+                first_name, 
+                update.effective_user.last_name
+            )
+            
+            # Log user activity
+            audit_logger.log_event(
+                user_id=user_id,
+                module="system",
+                action="start_session",
+                details={"username": update.effective_user.username}
+            )
+            
+            welcome = f"""Hi {first_name}! I'm Umbra, your AI assistant with specialized capabilities.
 
 I work like Claude Desktop - just chat naturally and I'll use my modules when needed:
 
@@ -285,19 +390,55 @@ I understand English, French, and Portuguese. How can I help you today?"""
         """Show available MCP modules."""
         user_id = update.effective_user.id
         
-        if not self.permission_manager.is_user_allowed(user_id):
-            await update.message.reply_text("❌ Unauthorized")
-            return
-        
-        modules_text = "**🛠️ Available MCP Modules:**\n\n"
-        
-        for module_id, module in self.modules.items():
-            modules_text += f"**{module['name']}**\n"
-            for capability in module['capabilities'][:3]:  # Show first 3
-                modules_text += f"  • {capability}\n"
-            modules_text += "\n"
-        
-        await update.message.reply_text(modules_text, parse_mode='Markdown')
+        with logging_middleware.log_request(user_id, "system", "list_modules"):
+            if not self.permission_manager.is_user_allowed(user_id):
+                audit_logger.log_access_attempt(
+                    user_id=user_id,
+                    module="system",
+                    action="list_modules", 
+                    granted=False
+                )
+                metrics.record_permission_check("system", "list_modules", "denied")
+                await update.message.reply_text("❌ Unauthorized")
+                return
+            
+            # Check specific permission for viewing modules
+            if not self.permission_manager.check_module_permission(user_id, "system", "read"):
+                audit_logger.log_access_attempt(
+                    user_id=user_id,
+                    module="system",
+                    action="list_modules",
+                    granted=False,
+                    reason="Insufficient role for module listing"
+                )
+                metrics.record_permission_check("system", "list_modules", "denied")
+                await update.message.reply_text("❌ Insufficient permissions to view modules")
+                return
+            
+            audit_logger.log_access_attempt(
+                user_id=user_id,
+                module="system",
+                action="list_modules",
+                granted=True
+            )
+            metrics.record_permission_check("system", "list_modules", "granted")
+            
+            modules_text = "**🛠️ Available MCP Modules:**\n\n"
+            
+            for module_id, module in self.modules.items():
+                modules_text += f"**{module['name']}**\n"
+                for capability in module['capabilities'][:3]:  # Show first 3
+                    modules_text += f"  • {capability}\n"
+                modules_text += "\n"
+            
+            audit_logger.log_event(
+                user_id=user_id,
+                module="system",
+                action="list_modules",
+                details={"modules_count": len(self.modules)}
+            )
+            
+            await update.message.reply_text(modules_text, parse_mode='Markdown')
     
     async def _handle_conversation(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Handle all messages with Claude Desktop-style AI."""
@@ -305,46 +446,105 @@ I understand English, French, and Portuguese. How can I help you today?"""
         message_text = update.message.text
         first_name = update.effective_user.first_name or "User"
         
-        if not self.permission_manager.is_user_allowed(user_id):
-            await update.message.reply_text("❌ Unauthorized")
-            return
-        
-        try:
-            # Show typing
-            await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
-            
-            # Process with Claude-style AI
-            if self.ai_agent:
-                response = await self.ai_agent.process(
+        with logging_middleware.log_request(user_id, "ai", "conversation", message_preview=message_text[:50]):
+            if not self.permission_manager.is_user_allowed(user_id):
+                audit_logger.log_access_attempt(
                     user_id=user_id,
-                    message=message_text,
-                    user_name=first_name,
-                    modules=self.modules,
-                    context=context,
-                    update=update
+                    module="ai",
+                    action="conversation",
+                    granted=False
+                )
+                metrics.record_permission_check("ai", "conversation", "denied")
+                await update.message.reply_text("❌ Unauthorized")
+                return
+            
+            audit_logger.log_access_attempt(
+                user_id=user_id, 
+                module="ai",
+                action="conversation",
+                granted=True
+            )
+            metrics.record_permission_check("ai", "conversation", "granted")
+            
+            try:
+                # Show typing
+                await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
+                
+                # Log conversation start
+                audit_logger.log_event(
+                    user_id=user_id,
+                    module="ai",
+                    action="conversation_start",
+                    details={"message_length": len(message_text)}
                 )
                 
-                if response:
-                    # Store conversation
-                    self.conversation_manager.add_message(
-                        user_id, message_text, response, "ai"
+                # Process with Claude-style AI
+                if self.ai_agent:
+                    response = await self.ai_agent.process(
+                        user_id=user_id,
+                        message=message_text,
+                        user_name=first_name,
+                        modules=self.modules,
+                        context=context,
+                        update=update
                     )
                     
-                    await update.message.reply_text(response, parse_mode='Markdown')
-                    return
-            
-            # Fallback
-            await update.message.reply_text(
-                "I'm having trouble processing that. Try rephrasing or check my configuration.",
-                parse_mode='Markdown'
-            )
-            
-        except Exception as e:
-            self.logger.error(f"Conversation error: {e}", exc_info=True)
-            await update.message.reply_text(
-                "Sorry, I encountered an error. Please try again.",
-                parse_mode='Markdown'
-            )
+                    if response:
+                        # Store conversation
+                        self.conversation_manager.add_message(
+                            user_id, message_text, response, "ai"
+                        )
+                        
+                        # Log successful response
+                        audit_logger.log_event(
+                            user_id=user_id,
+                            module="ai", 
+                            action="conversation_complete",
+                            details={
+                                "response_length": len(response),
+                                "modules_available": len(self.modules)
+                            }
+                        )
+                        
+                        user_role = self.permission_manager.get_user_role(user_id)
+                        metrics.record_request("ai", "conversation", "success", 0, user_role)
+                        
+                        await update.message.reply_text(response, parse_mode='Markdown')
+                        return
+                
+                # Fallback
+                audit_logger.log_event(
+                    user_id=user_id,
+                    module="ai",
+                    action="conversation_fallback",
+                    status="warning",
+                    details={"reason": "AI agent not available"}
+                )
+                
+                await update.message.reply_text(
+                    "I'm having trouble processing that. Try rephrasing or check my configuration.",
+                    parse_mode='Markdown'
+                )
+                
+            except Exception as e:
+                # Log error with audit
+                audit_logger.log_error(
+                    user_id=user_id,
+                    module="ai",
+                    action="conversation",
+                    error_type=type(e).__name__,
+                    error_message=str(e)
+                )
+                
+                user_role = self.permission_manager.get_user_role(user_id)
+                metrics.record_request("ai", "conversation", "error", 0, user_role)
+                metrics.record_error("ai", type(e).__name__)
+                
+                self.logger.error(f"Conversation error: {e}", exc_info=True)
+                await update.message.reply_text(
+                    "Sorry, I encountered an error. Please try again.",
+                    parse_mode='Markdown'
+                )
 
 # Export
 UmbraBot = UmbraAIAgent
