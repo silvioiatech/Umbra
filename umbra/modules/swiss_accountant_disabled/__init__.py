@@ -51,13 +51,13 @@ __version__ = "1.0.0"
 __author__ = "Swiss Accountant Development Team"
 __license__ = "MIT"
 
-# Main exports
-from .main import (
-    SwissAccountant,
-    create_swiss_accountant,
-    get_default_config,
-    load_config_from_file
-)
+# Main exports - Temporarily disabled due to missing implementation files
+# from .main import (
+#     SwissAccountant,
+#     create_swiss_accountant,
+#     get_default_config,
+#     load_config_from_file
+# )
 
 # Database
 from .database.manager import (
