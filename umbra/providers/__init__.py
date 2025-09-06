@@ -2,6 +2,6 @@
 AI provider interfaces and implementations.
 """
 
-from .openrouter import OpenRouterClient
+from .openrouter import OpenRouterProvider, OpenRouterClient, ModelRole
 
-__all__ = ["OpenRouterClient"]
+__all__ = ["OpenRouterProvider", "OpenRouterClient", "ModelRole"]

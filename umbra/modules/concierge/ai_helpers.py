@@ -14,7 +14,7 @@ from typing import Dict, List, Optional, Any, Tuple
 from dataclasses import dataclass
 from enum import Enum
 
-from ..core.redact import DataRedactor
+from ...core.redact import DataRedactor
 
 class LogSeverity(Enum):
     """Log severity levels."""

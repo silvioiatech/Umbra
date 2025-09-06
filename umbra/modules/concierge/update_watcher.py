@@ -15,7 +15,7 @@ from enum import Enum
 from ...core.config import UmbraConfig
 from .docker_registry import DockerRegistryHelper
 from .blue_green import BlueGreenManager
-from .update_clients import ClientUpdateManager
+# from .update_clients import ClientUpdateManager  # Commented to avoid circular import
 
 
 class UpdateStatus(Enum):

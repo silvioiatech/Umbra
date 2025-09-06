@@ -19,16 +19,16 @@ from ..core.logger import get_context_logger
 from ..core.approvals import ApprovalManager, ApprovalStatus
 from ..core.redact import DataRedactor
 
-from .risk import RiskClassifier, RiskLevel
-from .system_ops import SystemOps, SystemMetrics
-from .docker_ops import DockerOps
-from .exec_ops import ExecOps, ExecutionRequest
-from .files_ops import FileOps, FileManifest
-from .patch_ops import PatchOps, PatchStatus
-from .ai_helpers import AIHelpers
-from .validators import Validators
-from .instances_ops import InstancesRegistry, InstanceCreateRequest
-from .update_watcher import UpdateWatcher
+from .concierge.risk import RiskClassifier, RiskLevel
+from .concierge.system_ops import SystemOps, SystemMetrics
+from .concierge.docker_ops import DockerOps
+from .concierge.exec_ops import ExecOps, ExecutionRequest
+from .concierge.files_ops import FileOps, FileManifest
+from .concierge.patch_ops import PatchOps, PatchStatus
+from .concierge.ai_helpers import AIHelpers
+from .concierge.validators import Validators
+from .concierge.instances_ops import InstancesRegistry, InstanceCreateRequest
+from .concierge.update_watcher import UpdateWatcher
 
 class ConciergeMCP:
     """

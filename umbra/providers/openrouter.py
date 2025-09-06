@@ -6,12 +6,21 @@ import asyncio
 import json
 import time
 from typing import Dict, Any, List, Optional
+from enum import Enum
 import httpx
 
 from ..ai.agent import AIProvider, AgentRequest, AgentResponse, AgentCapability
 from ..core.logger import get_context_logger
 
 logger = get_context_logger(__name__)
+
+
+class ModelRole(Enum):
+    """AI model roles for different tasks."""
+    PLANNER = "planner"
+    BUILDER = "builder"
+    CONTROLLER = "controller"
+    CHAT = "chat"
 
 class OpenRouterProvider(AIProvider):
     """OpenRouter API provider with F3R1 AI Agent interface."""
@@ -324,4 +333,7 @@ class OpenRouterProvider(AIProvider):
         ]
 
 # Export
-__all__ = ["OpenRouterProvider"]
+# For backwards compatibility
+OpenRouterClient = OpenRouterProvider
+
+__all__ = ["OpenRouterProvider", "OpenRouterClient", "ModelRole"]
