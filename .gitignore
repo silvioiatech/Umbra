@@ -53,6 +53,7 @@ coverage.xml
 
 # Documentation builds
 docs/_build/
+docs/build/
 
 # Node modules (if any)
 node_modules/
@@ -62,6 +63,20 @@ node_modules/
 
 # GitHub seeding artifacts (temporary)
 .github/.seeded
+
+# ========================================
+# PROJECT ORGANIZATION
+# ========================================
+
+# Demos directory is included in repo
+# demos/
+
+# Scripts directory is included in repo  
+# scripts/
+
+# Test outputs
+test_outputs/
+test_results/
 
 # ========================================
 # F4R2 SPECIFIC
