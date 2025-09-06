@@ -1,0 +1,41 @@
+# Swiss Accountant Requirements
+# Core dependencies for the Swiss Accountant module
+
+# Image processing and OCR
+Pillow>=9.0.0                    # Image processing for receipts
+pytesseract>=0.3.8              # OCR text extraction
+
+# Excel export functionality
+openpyxl>=3.0.9                 # Excel file creation and editing
+
+# Optional dependencies (install separately if needed)
+# These are commented out as they are large and not always required
+
+# pdf2image>=1.16.0             # PDF to image conversion (requires poppler)
+# opencv-python>=4.5.0          # Advanced image preprocessing
+# scikit-image>=0.19.0          # Image enhancement algorithms
+
+# Development and testing dependencies (optional)
+# pytest>=7.0.0                 # Testing framework
+# pytest-cov>=4.0.0             # Coverage reporting
+# black>=22.0.0                 # Code formatting
+# flake8>=5.0.0                 # Code linting
+
+# Installation notes:
+# 
+# 1. Tesseract OCR Engine (required for OCR functionality):
+#    - macOS: brew install tesseract tesseract-lang
+#    - Ubuntu: sudo apt-get install tesseract-ocr tesseract-ocr-deu tesseract-ocr-fra tesseract-ocr-ita
+#    - Windows: Download from https://github.com/UB-Mannheim/tesseract/wiki
+#
+# 2. For PDF processing (optional):
+#    - Install poppler-utils:
+#      - macOS: brew install poppler
+#      - Ubuntu: sudo apt-get install poppler-utils
+#      - Windows: Download from https://poppler.freedesktop.org/
+#
+# 3. Language packs for Tesseract:
+#    - German: tesseract-ocr-deu
+#    - French: tesseract-ocr-fra  
+#    - Italian: tesseract-ocr-ita
+#    - English: tesseract-ocr-eng (usually included)

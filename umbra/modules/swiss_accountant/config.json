@@ -1,0 +1,71 @@
+{
+  "database_path": "swiss_accountant.db",
+  "log_level": "INFO",
+  "ocr_language": "deu+fra+ita+eng",
+  "default_currency": "CHF",
+  "default_vat_rate": 8.1,
+  "reconciliation_auto_accept": true,
+  "export_formats": ["csv", "xlsx", "json"],
+  
+  "_comment_canton": "Swiss canton for tax calculations",
+  "canton": "ZH",
+  
+  "_comment_ocr": "OCR configuration",
+  "ocr_confidence_threshold": 0.7,
+  "ocr_preprocessing": true,
+  "ocr_dpi": 300,
+  
+  "_comment_reconciliation": "Reconciliation settings",
+  "reconciliation": {
+    "exact_match_tolerance_days": 2,
+    "probable_match_tolerance_days": 7,
+    "amount_tolerance_percentage": 0.01,
+    "minimum_match_score": 0.7,
+    "auto_accept_exact_threshold": 0.95,
+    "auto_accept_probable_threshold": 0.85
+  },
+  
+  "_comment_tax": "Swiss tax settings",
+  "tax_settings": {
+    "professional_expenses_flat_rate": 4000,
+    "commute_public_max": 3000,
+    "meals_daily_max": 30,
+    "pillar_3a_employed_max": 7056,
+    "childcare_per_child_max": 25000,
+    "donations_minimum": 100,
+    "donations_max_percentage": 20,
+    "medical_threshold_percentage": 5
+  },
+  
+  "_comment_merchant": "Merchant normalization settings",
+  "merchant_normalization": {
+    "auto_learn": true,
+    "confidence_threshold": 0.8,
+    "fuzzy_match_threshold": 0.6
+  },
+  
+  "_comment_export": "Export configuration",
+  "export_settings": {
+    "default_format": "xlsx",
+    "include_receipts": true,
+    "date_format": "DD.MM.YYYY",
+    "decimal_separator": ".",
+    "thousands_separator": "'"
+  },
+  
+  "_comment_languages": "Language preferences",
+  "languages": {
+    "primary": "deu",
+    "fallback": ["fra", "ita", "eng"]
+  },
+  
+  "_comment_storage": "File storage settings",
+  "storage": {
+    "receipts_directory": "receipts",
+    "statements_directory": "statements",
+    "exports_directory": "exports",
+    "backup_directory": "backups",
+    "max_file_size_mb": 50,
+    "cleanup_after_days": 365
+  }
+}

@@ -1,0 +1,93 @@
+MIT License
+
+Copyright (c) 2024 UMBRA Development Team
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+## Swiss Tax Compliance Disclaimer
+
+This software is designed to assist with Swiss tax compliance and expense tracking.
+However, users are responsible for:
+
+1. **Accuracy Verification:** All calculations and categorizations should be 
+   verified against current Swiss federal and cantonal tax regulations.
+
+2. **Professional Consultation:** For complex tax situations, users should 
+   consult with qualified Swiss tax professionals or authorities.
+
+3. **Regulatory Updates:** Tax laws and regulations change frequently. Users 
+   must ensure they are using current rules and limits.
+
+4. **Data Security:** Users are responsible for securing their financial data 
+   and complying with applicable privacy regulations.
+
+5. **Legal Compliance:** This software does not constitute tax advice. Users 
+   must comply with all applicable Swiss tax laws and filing requirements.
+
+The authors and contributors make no warranties about the accuracy of tax 
+calculations or compliance with Swiss tax regulations. Use of this software 
+does not guarantee tax compliance or acceptance by Swiss tax authorities.
+
+## Third-Party Licenses
+
+This software includes or depends on third-party libraries with their own licenses:
+
+- **Pillow (PIL):** BSD-like license for image processing
+- **pytesseract:** Apache 2.0 license for OCR functionality  
+- **openpyxl:** MIT license for Excel file handling
+- **Tesseract OCR:** Apache 2.0 license for text recognition engine
+
+Users must comply with all applicable third-party licenses when using this software.
+
+## Data Privacy Notice
+
+This software processes financial and personal data locally. Users should:
+
+1. **Local Processing:** All data processing occurs locally on the user's device
+2. **No Cloud Storage:** No data is transmitted to external servers by default
+3. **User Responsibility:** Users control all data storage and backup decisions
+4. **GDPR Compliance:** Users must ensure compliance with applicable privacy laws
+5. **Data Retention:** Users control data retention and deletion policies
+
+## Commercial Use
+
+This software may be used for commercial purposes under the terms of this license.
+However, commercial users should:
+
+1. **Professional Review:** Have tax calculations reviewed by qualified professionals
+2. **Compliance Verification:** Ensure all features meet business compliance requirements  
+3. **Support Considerations:** Evaluate support and maintenance needs for business use
+4. **Liability Assessment:** Consider appropriate insurance and liability coverage
+
+## Contribution Agreement
+
+By contributing to this project, contributors agree that their contributions 
+will be licensed under the same MIT license terms.
+
+## Contact Information
+
+For questions about this license or the software:
+- Project Repository: https://github.com/your-org/UMBRA
+- Issues: https://github.com/your-org/UMBRA/issues
+- Documentation: See README.md and documentation files
+
+---
+
+*This license applies to the Swiss Accountant module within the UMBRA project.*
+*Individual components may have additional license requirements.*

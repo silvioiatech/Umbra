@@ -98,6 +98,29 @@ class UmbraConfig:
         self.CREATOR_DEEPGRAM_API_KEY = os.getenv('CREATOR_DEEPGRAM_API_KEY')
         
         # ========================================
+        # C3: CONCIERGE INSTANCES CONFIGURATION
+        # ========================================
+        
+        # Instance Registry Configuration
+        self.CLIENT_PORT_RANGE = os.getenv('CLIENT_PORT_RANGE', '20000-21000')
+        self.CLIENTS_BASE_DIR = os.getenv('CLIENTS_BASE_DIR', '/srv/n8n-clients')
+        self.N8N_IMAGE = os.getenv('N8N_IMAGE', 'n8nio/n8n:latest')
+        self.N8N_BASE_ENV = os.getenv('N8N_BASE_ENV', '')
+        self.NGINX_CONTAINER_NAME = os.getenv('NGINX_CONTAINER_NAME')
+        self.INSTANCES_HOST = os.getenv('INSTANCES_HOST', 'localhost')
+        self.INSTANCES_USE_HTTPS = self._parse_bool('INSTANCES_USE_HTTPS', default=False)
+        
+        # Concierge Configuration
+        self.CONCIERGE_RBAC_ENABLED = self._parse_bool('CONCIERGE_RBAC_ENABLED', default=True)
+        self.CONCIERGE_AUDIT_ENABLED = self._parse_bool('CONCIERGE_AUDIT_ENABLED', default=True)
+        self.OUTPUT_MAX_BYTES = int(os.getenv('OUTPUT_MAX_BYTES', '100000'))
+        self.FILE_LIMIT_MB = int(os.getenv('FILE_LIMIT_MB', '100'))
+        self.SPLIT_ABOVE_MB = int(os.getenv('SPLIT_ABOVE_MB', '100'))
+        self.CHUNK_MB = int(os.getenv('CHUNK_MB', '8'))
+        self.INTEGRITY = os.getenv('INTEGRITY', 'sha256')
+        self.DOCKER_HOST = os.getenv('DOCKER_HOST', 'unix:///var/run/docker.sock')
+        
+        # ========================================
         # COMPUTED PROPERTIES & FEATURE FLAGS
         # ========================================
         
