@@ -197,20 +197,14 @@ class UmbraLauncher:
             logger.info("Starting Telegram bot")
             
             # Import bot here to avoid circular imports
-            from umbra.bot import UmbraAIAgent
+            from umbra.bot import UmbraBot
             
-            self.bot = UmbraAIAgent(config)
-            bot_task = asyncio.create_task(self.bot.start())
+            self.bot = UmbraBot(config)
             
-            logger.info(
-                "Telegram bot started successfully",
-                extra={
-                    "modules_loaded": len(getattr(self.bot, 'modules', {})),
-                    "ai_enabled": bool(getattr(self.bot, 'ai_agent', None))
-                }
-            )
+            # Start the bot (this will run indefinitely until stopped)
+            await self.bot.start()
             
-            return bot_task
+            logger.info("Telegram bot stopped")
             
         except Exception as e:
             logger.error(
@@ -261,9 +255,6 @@ class UmbraLauncher:
             # Start health server first
             await self.start_health_server()
             
-            # Start bot
-            bot_task = await self.start_bot()
-            
             # Set up signal handlers for graceful shutdown
             def signal_handler(signum, frame):
                 logger.info(
@@ -273,7 +264,9 @@ class UmbraLauncher:
                         "signal_name": signal.Signals(signum).name if hasattr(signal, 'Signals') else str(signum)
                     }
                 )
-                bot_task.cancel()
+                # Signal the bot to stop
+                if self.bot:
+                    self.bot.stop()
             
             # Register signal handlers (works on Unix systems)
             try:
@@ -284,13 +277,10 @@ class UmbraLauncher:
                 # Windows or other platforms might not support all signals
                 logger.info("Signal handlers not available on this platform")
             
-            logger.info("All services started, entering main loop")
+            logger.info("All services started, starting bot")
             
-            # Wait for bot to complete or be cancelled
-            try:
-                await bot_task
-            except asyncio.CancelledError:
-                logger.info("Bot task cancelled, initiating shutdown")
+            # Start bot (this will run until stopped)
+            await self.start_bot()
             
         except Exception as e:
             logger.error(

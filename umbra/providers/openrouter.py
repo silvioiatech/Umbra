@@ -1,36 +1,140 @@
 """
-Fixed OpenRouter API client for LLM interactions.
-Provides text generation, image generation, and other AI capabilities.
+OpenRouter Provider - F3R1: OpenRouter integration for Umbra AI Agent.
+Adapted from working implementation with F3R1 AI Agent interface.
 """
-
 import asyncio
 import json
-from typing import Any, Dict, List, Optional
+import time
+from typing import Dict, Any, List, Optional
 import httpx
-import logging
 
-class OpenRouterProvider:
-    """OpenRouter API provider with proper error handling."""
+from ..ai.agent import AIProvider, AgentRequest, AgentResponse, AgentCapability
+from ..core.logger import get_context_logger
+
+logger = get_context_logger(__name__)
+
+class OpenRouterProvider(AIProvider):
+    """OpenRouter API provider with F3R1 AI Agent interface."""
 
     def __init__(self, config):
         """Initialize OpenRouter provider."""
         self.config = config
         self.api_key = config.OPENROUTER_API_KEY
         self.base_url = config.OPENROUTER_BASE_URL.rstrip("/")
-        self.default_model = config.OPENROUTER_MODEL
+        self.default_model = config.OPENROUTER_DEFAULT_MODEL
         self.timeout = 30.0
         self.max_retries = 2
-        self.logger = logging.getLogger(__name__)
+        self.logger = get_context_logger(__name__)
+        
+        # Role-based model mapping
+        self.role_models = {
+            "planner": getattr(config, 'OPENROUTER_MODEL_PLANNER', self.default_model),
+            "builder": getattr(config, 'OPENROUTER_MODEL_BUILDER', self.default_model),
+            "controller": getattr(config, 'OPENROUTER_MODEL_CONTROLLER', self.default_model),
+            "chat": getattr(config, 'OPENROUTER_MODEL_CHAT', self.default_model)
+        }
         
         # Log initialization status
         if self.api_key:
-            self.logger.info(f"✅ OpenRouter provider initialized")
-            self.logger.info(f"   API Key: {self.api_key[:10]}...{self.api_key[-4:]}")
-            self.logger.info(f"   Base URL: {self.base_url}")
-            self.logger.info(f"   Default Model: {self.default_model}")
+            self.logger.info(
+                "OpenRouter provider initialized (F3R1)",
+                extra={
+                    "api_key_preview": f"{self.api_key[:10]}...{self.api_key[-4:]}",
+                    "base_url": self.base_url,
+                    "default_model": self.default_model,
+                    "role_models": self.role_models
+                }
+            )
         else:
-            self.logger.error("❌ OpenRouter API key not found!")
+            self.logger.error("OpenRouter API key not found!")
             raise ValueError("OpenRouter API key is required but not configured")
+
+    def get_capabilities(self) -> List[AgentCapability]:
+        """Get capabilities supported by OpenRouter."""
+        return [
+            AgentCapability.CONVERSATION,
+            AgentCapability.FUNCTION_CALLING,
+            AgentCapability.CODE_GENERATION,
+            AgentCapability.DOCUMENT_ANALYSIS
+        ]
+
+    def is_available(self) -> bool:
+        """Check if provider is available."""
+        return bool(self.api_key)
+
+    def get_model_for_role(self, role: str = "chat") -> str:
+        """Get model for specific role."""
+        return self.role_models.get(role, self.default_model)
+
+    async def generate_response(self, request: AgentRequest) -> AgentResponse:
+        """Generate response using OpenRouter API (F3R1 interface)."""
+        
+        start_time = time.time()
+        
+        try:
+            # Determine model to use (check context for role)
+            role = request.context.get("role", "chat") if request.context else "chat"
+            model = self.get_model_for_role(role)
+            
+            # Prepare messages
+            messages = [
+                {"role": "user", "content": request.message}
+            ]
+            
+            # Add context if provided
+            if request.context and request.context.get("system_prompt"):
+                messages.insert(0, {
+                    "role": "system", 
+                    "content": request.context["system_prompt"]
+                })
+            
+            # Generate completion
+            content = await self.chat_completion(
+                messages=messages,
+                model=model,
+                max_tokens=request.max_tokens,
+                temperature=request.temperature
+            )
+            
+            duration_ms = (time.time() - start_time) * 1000
+            
+            if content:
+                return AgentResponse(
+                    content=content,
+                    success=True,
+                    provider="openrouter",
+                    model=model,
+                    duration_ms=duration_ms,
+                    usage={"model": model, "role": role}
+                )
+            else:
+                return AgentResponse(
+                    content="",
+                    success=False,
+                    error="OpenRouter returned empty response",
+                    provider="openrouter",
+                    model=model,
+                    duration_ms=duration_ms
+                )
+                
+        except Exception as e:
+            duration_ms = (time.time() - start_time) * 1000
+            self.logger.error(
+                "OpenRouter response generation failed",
+                extra={
+                    "error": str(e),
+                    "user_id": request.user_id,
+                    "duration_ms": duration_ms
+                }
+            )
+            
+            return AgentResponse(
+                content="",
+                success=False,
+                error=str(e),
+                provider="openrouter",
+                duration_ms=duration_ms
+            )
 
     async def chat_completion(
         self,
@@ -65,7 +169,7 @@ class OpenRouterProvider:
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
             "HTTP-Referer": "https://github.com/silvioiatech/Umbra",
-            "X-Title": "Umbra Bot"
+            "X-Title": "Umbra Bot F3R1"
         }
 
         for attempt in range(self.max_retries + 1):
@@ -76,7 +180,10 @@ class OpenRouterProvider:
                     if response.status_code == 200:
                         result = response.json()
                         content = result.get("choices", [{}])[0].get("message", {}).get("content", "")
-                        self.logger.debug(f"Chat completion successful: {model}")
+                        self.logger.debug(
+                            "Chat completion successful",
+                            extra={"model": model, "response_length": len(content)}
+                        )
                         return content
                         
                     elif response.status_code == 401:
@@ -148,7 +255,7 @@ class OpenRouterProvider:
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
             "HTTP-Referer": "https://github.com/silvioiatech/Umbra",
-            "X-Title": "Umbra Bot"
+            "X-Title": "Umbra Bot F3R1"
         }
 
         for attempt in range(self.max_retries + 1):
@@ -198,38 +305,10 @@ class OpenRouterProvider:
         self.logger.error("Image generation failed after all retries")
         return None
 
-    async def generate_response(
-        self,
-        messages: List[Dict[str, str]],
-        max_tokens: int = 500,
-        temperature: float = 0.7,
-        **kwargs
-    ) -> Optional[str]:
-        """Simplified interface for generating responses."""
-        return await self.chat_completion(
-            messages=messages,
-            max_tokens=max_tokens,
-            temperature=temperature,
-            **kwargs
-        )
-    
-    async def is_available(self) -> bool:
-        """Check if OpenRouter API is available."""
-        if not self.api_key:
-            return False
-            
-        try:
-            # Simple test call
-            response = await self.chat_completion([
-                {"role": "user", "content": "Hello"}
-            ], max_tokens=10)
-            return response is not None
-        except Exception:
-            return False
-
     def get_text_models(self) -> List[str]:
         """Get list of recommended text models."""
         return [
+            "anthropic/claude-3.5-sonnet:beta",
             "anthropic/claude-3-haiku",
             "openai/gpt-4o-mini", 
             "google/gemini-pro-1.5",
@@ -243,3 +322,6 @@ class OpenRouterProvider:
             "black-forest-labs/flux-dev",
             "stability-ai/stable-diffusion-xl"
         ]
+
+# Export
+__all__ = ["OpenRouterProvider"]

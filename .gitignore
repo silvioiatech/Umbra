@@ -47,6 +47,9 @@ build/
 .pytest_cache/
 .coverage
 htmlcov/
+coverage.xml
+*.cover
+.coverage.*
 
 # Documentation builds
 docs/_build/
@@ -59,3 +62,42 @@ node_modules/
 
 # GitHub seeding artifacts (temporary)
 .github/.seeded
+
+# ========================================
+# F4R2 SPECIFIC
+# ========================================
+
+# F4R2 test artifacts
+f4r2_test_*
+**/f4r2_test_*
+
+# Temporary R2 files
+*.r2tmp
+*.s3tmp
+
+# Local storage cache
+.r2_cache/
+.storage_cache/
+
+# Test data exports
+exports/test_*
+temp_exports/
+
+# Security reports
+bandit-report.json
+safety-report.json
+
+# Performance benchmarks
+benchmark-*.json
+.benchmarks/
+
+# Parquet test files
+*.test.parquet
+test_*.parquet
+
+# JSONL test files
+*.test.jsonl
+test_*.jsonl
+
+# Search index test files
+test_search_index_*.json
