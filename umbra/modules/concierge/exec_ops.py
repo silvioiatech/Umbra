@@ -16,8 +16,8 @@ from typing import Dict, List, Optional, Any, Tuple
 from dataclasses import dataclass
 
 from .risk import RiskClassifier, RiskLevel
-from ..core.approvals import ApprovalManager, ApprovalStatus
-from ..core.redact import DataRedactor
+from ...core.approvals import ApprovalManager, ApprovalStatus
+from ...core.redact import DataRedactor
 
 @dataclass
 class ExecutionResult:
